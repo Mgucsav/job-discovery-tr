@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Tüm veri erişimi web/ uygulamasının sunucu tarafında (Admin SDK, doğrulanmış oturum) yapılır.
+// İstemci SDK'sı, anonim istekler ve oturum açmış kullanıcının doğrudan Firestore istekleri dahil
+// hiçbir istemci erişimine izin verilmez.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

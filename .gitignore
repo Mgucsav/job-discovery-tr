@@ -31,6 +31,9 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 
-# Supabase CLI yerel durumu
-supabase/.temp/
-supabase/.branches/
+# Firebase CLI yerel durumu ve servis hesabı anahtarları
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+*service-account*.json
+*-firebase-adminsdk-*.json

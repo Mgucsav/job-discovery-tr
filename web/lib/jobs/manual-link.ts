@@ -1,5 +1,5 @@
 import { validateJobUrl } from "@/lib/core";
-import type { UpsertJobPostingArgs } from "@/lib/supabase/database.types";
+import type { JobPostingInput } from "./types";
 
 export interface ManualLinkInput {
   url: string;
@@ -9,14 +9,12 @@ export interface ManualLinkInput {
   description?: string | null | undefined;
 }
 
-export type ManualLinkResult =
-  | { ok: true; args: UpsertJobPostingArgs }
-  | { ok: false; error: string };
+export type ManualLinkResult = { ok: true; input: JobPostingInput } | { ok: false; error: string };
 
 export const MANUAL_LINK_URL_ERROR =
   "Yalnızca doğrudan HTTPS ilan bağlantıları kabul edilir: LinkedIn (/jobs/view/ID), Kariyer.net (/is-ilani/...-ID) veya Indeed (/viewjob?jk=...). Kısaltılmış veya yönlendirme bağlantıları reddedilir.";
 
-const FIELD_LIMITS = { title: 240, company: 200, location: 200, description: 5000 } as const;
+export const FIELD_LIMITS = { title: 240, company: 200, location: 200, description: 5000 } as const;
 
 function optionalText(value: string | null | undefined, limit: number, label: string): string | null {
   const trimmed = (value ?? "").replace(/\s+/g, " ").trim();
@@ -25,9 +23,9 @@ function optionalText(value: string | null | undefined, limit: number, label: st
   return trimmed;
 }
 
-// Elle eklenen bağlantıyı çekirdek doğrulama kurallarından geçirir ve upsert argümanlarına çevirir.
+// Elle eklenen bağlantıyı çekirdek doğrulama kurallarından geçirir ve depo girdisine çevirir.
 // Boş alanlar null kalır; manuel kayda Gmail e-posta kimliği yazılmaz.
-export function prepareManualLink(input: ManualLinkInput): ManualLinkResult {
+export function prepareManualLink(input: ManualLinkInput, now: () => Date = () => new Date()): ManualLinkResult {
   const rawUrl = (input.url ?? "").trim();
   if (rawUrl.length === 0) return { ok: false, error: "İlan bağlantısı boş olamaz." };
   if (rawUrl.length > 2048) return { ok: false, error: "İlan bağlantısı çok uzun." };
@@ -38,16 +36,17 @@ export function prepareManualLink(input: ManualLinkInput): ManualLinkResult {
   try {
     return {
       ok: true,
-      args: {
-        p_source: validated.source,
-        p_source_job_id: validated.sourceJobId,
-        p_url: validated.canonicalUrl,
-        p_title: optionalText(input.title, FIELD_LIMITS.title, "Başlık"),
-        p_company: optionalText(input.company, FIELD_LIMITS.company, "Şirket"),
-        p_location: optionalText(input.location, FIELD_LIMITS.location, "Konum"),
-        p_description: optionalText(input.description, FIELD_LIMITS.description, "Açıklama"),
-        p_acquisition_method: "manual",
-        p_source_email_id: null,
+      input: {
+        source: validated.source,
+        sourceJobId: validated.sourceJobId,
+        url: validated.canonicalUrl,
+        title: optionalText(input.title, FIELD_LIMITS.title, "Başlık"),
+        company: optionalText(input.company, FIELD_LIMITS.company, "Şirket"),
+        location: optionalText(input.location, FIELD_LIMITS.location, "Konum"),
+        description: optionalText(input.description, FIELD_LIMITS.description, "Açıklama"),
+        firstSeenAt: now().toISOString(),
+        acquisitionMethod: "manual",
+        sourceEmailId: null,
       },
     };
   } catch (error) {

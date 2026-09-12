@@ -2,39 +2,45 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MANUAL_LINK_URL_ERROR, prepareManualLink } from "../lib/jobs/manual-link";
 
+const fixedNow = () => new Date("2026-09-12T10:00:00.000Z");
+
 test("elle eklenen bağlantı çekirdek doğrulama kurallarından geçer ve kanonik URL saklanır", () => {
-  const result = prepareManualLink({
-    url: "https://www.linkedin.com/jobs/view/example-role-4290012345?trk=share",
-    title: "  Veri   Mühendisi ",
-    company: "",
-    location: "   ",
-    description: undefined,
-  });
+  const result = prepareManualLink(
+    {
+      url: "https://www.linkedin.com/jobs/view/example-role-4290012345?trk=share",
+      title: "  Veri   Mühendisi ",
+      company: "",
+      location: "   ",
+      description: undefined,
+    },
+    fixedNow,
+  );
   assert.ok(result.ok);
-  assert.deepEqual(result.args, {
-    p_source: "linkedin",
-    p_source_job_id: "4290012345",
-    p_url: "https://www.linkedin.com/jobs/view/4290012345",
-    p_title: "Veri Mühendisi",
-    p_company: null,
-    p_location: null,
-    p_description: null,
-    p_acquisition_method: "manual",
-    p_source_email_id: null,
+  assert.deepEqual(result.input, {
+    source: "linkedin",
+    sourceJobId: "4290012345",
+    url: "https://www.linkedin.com/jobs/view/4290012345",
+    title: "Veri Mühendisi",
+    company: null,
+    location: null,
+    description: null,
+    firstSeenAt: "2026-09-12T10:00:00.000Z",
+    acquisitionMethod: "manual",
+    sourceEmailId: null,
   });
 });
 
 test("Kariyer.net ve Indeed bağlantıları kaynak ve ilan kimliğiyle ayrışır", () => {
   const kariyer = prepareManualLink({ url: "https://www.kariyer.net/is-ilani/ornek-rol-9876543" });
   assert.ok(kariyer.ok);
-  assert.equal(kariyer.args.p_source, "kariyer");
-  assert.equal(kariyer.args.p_source_job_id, "9876543");
+  assert.equal(kariyer.input.source, "kariyer");
+  assert.equal(kariyer.input.sourceJobId, "9876543");
 
   const indeed = prepareManualLink({ url: "https://tr.indeed.com/viewjob?jk=A1B2C3D4E5F60718&from=web" });
   assert.ok(indeed.ok);
-  assert.equal(indeed.args.p_source, "indeed");
-  assert.equal(indeed.args.p_source_job_id, "a1b2c3d4e5f60718");
-  assert.equal(indeed.args.p_url, "https://tr.indeed.com/viewjob?jk=a1b2c3d4e5f60718");
+  assert.equal(indeed.input.source, "indeed");
+  assert.equal(indeed.input.sourceJobId, "a1b2c3d4e5f60718");
+  assert.equal(indeed.input.url, "https://tr.indeed.com/viewjob?jk=a1b2c3d4e5f60718");
 });
 
 test("doğrulanmamış, kısaltılmış veya HTTP bağlantılar reddedilir", () => {

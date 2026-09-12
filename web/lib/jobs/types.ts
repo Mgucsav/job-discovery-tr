@@ -1,8 +1,24 @@
-import type { JobPosting } from "@/lib/core";
-import type { AcquisitionMethod, JobPostingRow } from "@/lib/supabase/database.types";
+import type { JobPosting, JobSource } from "@/lib/core";
 
-// Web görünüm modeli: JobPosting sözleşmesinin owner/edinilme bilgisiyle genişletilmiş hali.
-// Manuel kayıtta sourceEmailId null'dır; uydurulmaz.
+export type AcquisitionMethod = "manual" | "gmail";
+export type UpsertOutcome = "inserted" | "updated" | "unchanged";
+
+// Depoya yazılacak ilan: JobPosting sözleşmesi + edinilme yöntemi + isteğe bağlı alanlar.
+// Manuel kayıtta sourceEmailId null'dır; uydurulmaz. Gmail kaydında zorunludur.
+export interface JobPostingInput {
+  source: JobSource;
+  sourceJobId: string;
+  url: string;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  description: string | null;
+  firstSeenAt: string;
+  acquisitionMethod: AcquisitionMethod;
+  sourceEmailId: string | null;
+}
+
+// Web görünüm modeli: JobPosting sözleşmesinin sahip/edinilme bilgisiyle genişletilmiş hali.
 export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "descriptionStatus"> {
   id: string;
   company: string | null;
@@ -13,25 +29,7 @@ export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "de
   sourceEmailId: string | null;
 }
 
-export function toStoredJobPosting(row: JobPostingRow): StoredJobPosting {
-  return {
-    id: row.id,
-    source: row.source,
-    sourceJobId: row.source_job_id,
-    url: row.url,
-    title: row.title,
-    titleStatus: row.title === null ? "missing" : "present",
-    company: row.company,
-    location: row.location,
-    description: row.description,
-    descriptionStatus: row.description === null ? "missing" : "present",
-    firstSeenAt: row.first_seen_at,
-    acquisitionMethod: row.acquisition_method,
-    sourceEmailId: row.source_email_id,
-  };
-}
-
-export const SOURCE_LABELS: Record<JobPosting["source"], string> = {
+export const SOURCE_LABELS: Record<JobSource, string> = {
   linkedin: "LinkedIn",
   kariyer: "Kariyer.net",
   indeed: "Indeed",

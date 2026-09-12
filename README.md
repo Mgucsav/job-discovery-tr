@@ -103,59 +103,60 @@ interface JobPosting {
 - Fixture'lar hayalî kimlikler/şirket metinleri içerir; gerçek kişi, adres veya gerçek e-posta gövdesi içermez.
 - Hata mesajları token'ı loglamaz. Google'ın hata yanıtının yalnızca sınırlı bir bölümü teşhis amacıyla gösterilir.
 
-Yerel JSON deposu tek süreçli geliştirme/pilot kullanım içindir. **Vercel'in geçici dosya sistemi kalıcı veri tabanı değildir ve bu depo Vercel üretim kalıcılığı olarak tasarlanmamıştır.** `JobRepository` arayüzü, sonraki dağıtımda Postgres gibi kalıcı bir harici veri tabanı adaptörüyle değiştirilmelidir. Zamanlanmış görev de aynı keşif servisini çağırabilir; bu aşamada canlı zamanlama yoktur. Kalıcı depolama ve Vercel dağıtımı, aşağıdaki Aşama 2 web arayüzünde Supabase Postgres ile sağlanır; CLI keşfi henüz o veri tabanına bağlı değildir.
+Yerel JSON deposu tek süreçli geliştirme/pilot kullanım içindir. **Vercel'in geçici dosya sistemi kalıcı veri tabanı değildir ve bu depo Vercel üretim kalıcılığı olarak tasarlanmamıştır.** `JobRepository` arayüzü, sonraki dağıtımda Postgres gibi kalıcı bir harici veri tabanı adaptörüyle değiştirilmelidir. Zamanlanmış görev de aynı keşif servisini çağırabilir; bu aşamada canlı zamanlama yoktur. Kalıcı depolama ve Vercel dağıtımı, aşağıdaki Aşama 2 web arayüzünde Firebase (Firestore) ile sağlanır; CLI keşfi henüz o veri tabanına bağlı değildir.
 
-## Aşama 2: Web arayüzü (web/) ve Supabase kalıcılığı
+## Aşama 2: Web arayüzü (web/) ve Firebase kalıcılığı
 
-`web/` klasörü, ilanları Supabase Postgres'te kalıcı tutan ve yalnızca tek bir hesabın kullandığı Next.js + TypeScript uygulamasıdır. Vercel'de **Root Directory = `web/`** olarak dağıtılır. Mevcut CLI komutları (`discover`, `discover:fixtures`, `oauth:setup`) değişmedi ve bu aşamada Supabase'e yazmıyor.
+`web/` klasörü, ilanları Cloud Firestore'da kalıcı tutan ve yalnızca tek bir Firebase Authentication hesabının kullandığı Next.js + TypeScript uygulamasıdır. Vercel'de **Root Directory = `web/`** olarak dağıtılır. Mevcut CLI komutları (`discover`, `discover:fixtures`, `oauth:setup`) değişmedi ve bu aşamada Firestore'a yazmıyor.
 
 Yapabildikleri:
 
-- Supabase Auth (e-posta + şifre) ile giriş; herkese açık kayıt kapalı.
+- E-posta + şifre ile giriş (Firebase Authentication); herkese açık kayıt kapalı.
 - İlan listesi, kaynak filtresi (LinkedIn / Kariyer.net / Indeed), ilk görülme tarihine göre sıralama, "İlanı aç" ve "Sil".
 - "Bağlantı ekle": yalnızca `validateJobUrl` kurallarından geçen doğrudan HTTPS ilan bağlantıları kabul edilir; URL kanonik hale getirilir. Başlık/şirket/konum/açıklama isteğe bağlıdır, boş alanlar `null` kalır. Manuel kayda Gmail e-posta kimliği yazılmaz.
 - Boş veri tabanında açıkça "Henüz ilan yok; Gmail keşfi bağlı değil" gösterilir; örnek veri yoktur.
 
-Bilinçli olarak yapmadıkları: otomatik başvuru, form doldurma, AI puanlama, canlı Gmail zamanlayıcısı, Gmail keşif sonuçlarını Supabase'e yazma (CLI hâlâ yerel JSON depoya yazar).
+Bilinçli olarak yapmadıkları: otomatik başvuru, form doldurma, AI puanlama, canlı Gmail zamanlayıcısı, Gmail keşif sonuçlarını Firestore'a yazma (CLI hâlâ yerel JSON depoya yazar).
 
 ### Veri modeli ve güvenlik
 
-- Şema: `supabase/migrations/20260912120000_job_postings.sql`. Tablo `public.job_postings`; tekillik anahtarı `owner_id + source + source_job_id`. Saklanan alanlar: kaynak, kaynak ilan ID'si, kanonik URL, başlık/şirket/konum/açıklama (varsa), `first_seen_at`, `acquisition_method` (`manual` | `gmail`) ve yalnızca Gmail kayıtları için `source_email_id` (check kısıtı ile zorlanır).
-- `upsert_job_posting()` fonksiyonu `JsonFileJobRepository.upsert` ile aynı davranır: yeni ilan `inserted`; daha eski görülme ilk görülme bilgisini geri çeker; eksik alanlar tamamlanır; aksi hâlde `unchanged`. Fonksiyon `security invoker` olduğundan RLS çağıran kullanıcı adına uygulanır.
-- Row Level Security açık. Politikalar yalnızca `authenticated` rolüne, `owner_id = auth.uid()` koşuluyla tanımlı. Politikalardan bağımsız olarak `anon` rolünün tablo ve fonksiyon üzerindeki tüm yetkileri iptal edilmiştir; anonim istekler boş sonuç değil yetki hatası alır.
-- Next.js tarafında `@supabase/ssr` kullanılır. `proxy.ts` her istekte oturumu tazeler ve oturumsuz istekleri `/login`'e yönlendirir; sayfalar ve sunucu eylemleri ayrıca `auth.getUser()` ile doğrulanmış oturum ister (`getSession()` içindeki kullanıcı nesnesine güvenilmez). Kişisel sayfalar `force-dynamic`; statik çıktı üretilmez.
-- Tarayıcıda yalnızca `NEXT_PUBLIC_SUPABASE_URL` ve `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` bulunur. `service_role`/secret anahtar kullanılmaz. Tüm Supabase çağrıları sunucu tarafında yapılır.
+- Firestore yerleşimi: `users/{uid}/jobPostings/{source__sourceJobId}`. Belge kimliği tekillik anahtarıdır (sahip + kaynak + kaynak ilan ID'si). Alanlar: `ownerId`, `source`, `sourceJobId`, kanonik `url`, `title`/`company`/`location`/`description` (varsa, yoksa `null`), `firstSeenAt`, `acquisitionMethod` (`manual` | `gmail`), yalnızca Gmail kayıtları için `sourceEmailId`, `createdAt`, `updatedAt`.
+- `web/lib/jobs/merge.ts` içindeki birleştirme kuralı `JsonFileJobRepository.upsert` ile aynıdır: yeni ilan `inserted`; daha eski görülme ilk görülme bilgisini ve edinilme kaynağını geri çeker; eksik alanlar tamamlanır, mevcut değer ezilmez; aksi hâlde `unchanged`. Yazma bir Firestore transaction'ı içinde yapılır.
+- `firestore.rules` **tüm istemci/anonim erişimi reddeder** (`allow read, write: if false`). Veriye yalnızca uygulamanın sunucu tarafı (Admin SDK) doğrulanmış oturumla erişir; `uid` her zaman oturum çerezinden türetilir, istekten alınmaz.
+- Oturum: giriş sunucu tarafında Identity Toolkit REST ile yapılır, Admin SDK `createSessionCookie` ile **HttpOnly, Secure, SameSite=Lax** çerez üretilir. Her sayfa, sunucu eylemi ve route handler `verifySessionCookie(…, checkRevoked=true)` ile doğrulanmış kullanıcı ister; `proxy.ts` yalnızca çerezi olmayan istekleri `/login`'e yönlendirir ve tek başına yetki kaynağı değildir. Çıkışta refresh token'lar iptal edilir. Kişisel sayfalar `force-dynamic`; statik çıktı üretilmez.
+- Tarayıcıya hiçbir Firebase yapılandırması (API anahtarı dahil) gönderilmez. Sunucu ortam değişkenleri: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (servis hesabı), `FIREBASE_WEB_API_KEY`. Servis hesabı anahtarı yalnızca Vercel proje ayarlarında ve yerel `web/.env.local` içinde bulunur; `*service-account*.json` ve `*-firebase-adminsdk-*.json` dosyaları `.gitignore` kapsamındadır.
+- JSON API (`/api/login`, `/api/logout`, `/api/jobs`) aynı oturum doğrulamasını ve aynı depo fonksiyonlarını kullanır; gövdeli istekler yalnızca `application/json` kabul eder.
 
 ### Yerel çalıştırma
 
 ```powershell
 cd web
 npm install
-Copy-Item .env.example .env.local   # Supabase URL ve publishable key doldurun (Git dışıdır)
+Copy-Item .env.example .env.local   # Firebase servis hesabı ve Web API anahtarı (Git dışıdır)
 npm test
 npm run typecheck
 npm run build
 npm run dev                         # http://localhost:3000
 ```
 
-Migration'ı bağlı projeye uygulamak için (Supabase CLI ile giriş ve `supabase link` sonrası):
+Firestore kurallarını dağıtmak için (`npx firebase-tools login` sonrası, depo kökünde):
 
 ```powershell
-npx supabase db push
+npx firebase-tools deploy --only firestore --project <firebase-proje-id>
 ```
 
-Gerçek projeye karşı RLS/kalıcılık doğrulaması (şifre terminalde gizli girilir, hiçbir yere yazılmaz):
+Gerçek uygulamaya karşı uçtan uca doğrulama (şifre terminalde gizli girilir, hiçbir yere yazılmaz):
 
 ```powershell
 cd web
-npm run verify:supabase
+npm run verify:firebase -- --base-url https://<uygulama>.vercel.app
 ```
 
-Bu komut anonim okuma/yazmanın reddedildiğini, oturumla eklenen TEST kaydının yeniden okunduğunda durduğunu, tekrar eklemede `unchanged` döndüğünü, kaydın silindiğini ve oturum kapatılınca okumanın engellendiğini raporlar.
+Bu komut oturumsuz isteklerin `/login`'e yönlendirildiğini ve API'nin 401 verdiğini, girişle eklenen TEST kaydının sayfa yeniden istendiğinde göründüğünü, tekrar eklemede `unchanged` döndüğünü, kaydın silindiğini, çıkıştan sonra eski çerezin geçersiz olduğunu ve doğrudan Firestore isteklerinin (anonim ve kullanıcının kendi ID token'ı ile) 403 aldığını raporlar.
 
 ### Vercel
 
-Proje GitHub deposundan içe aktarılır; **Root Directory: `web`**. Ortam değişkenleri: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. `web/` uygulaması depo kökündeki `src/domain.ts` ve `src/discovery/parser.ts` dosyalarını doğrudan içe aktardığı için "Include source files outside of the Root Directory" ayarı açık olmalıdır (varsayılan açıktır).
+Proje GitHub deposundan içe aktarılır; **Root Directory: `web`**. Ortam değişkenleri: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_WEB_API_KEY`. `web/` uygulaması depo kökündeki `src/domain.ts` ve `src/discovery/parser.ts` dosyalarını doğrudan içe aktardığı için "Include source files outside of the Root Directory" ayarı açık olmalıdır (varsayılan açıktır).
 
 ## Bu aşamanın sınırları
 

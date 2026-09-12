@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: repoRoot,
   },
+  // firebase-admin yalnızca Node.js sunucu tarafında çalışır; paketlenmez, dış bağımlılık olarak yüklenir.
+  serverExternalPackages: ["firebase-admin"],
 };
 
 export default nextConfig;

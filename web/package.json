@@ -2,7 +2,7 @@
   "name": "job-discovery-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Kişisel iş ilanı keşif sistemi — Next.js web arayüzü (Supabase Auth + Postgres)",
+  "description": "Kişisel iş ilanı keşif sistemi — Next.js web arayüzü (Firebase Auth + Firestore)",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -12,14 +12,14 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts",
-    "verify:supabase": "node --env-file-if-exists=.env.local --import tsx scripts/verify-supabase.ts"
+    "verify:firebase": "node --env-file-if-exists=.env.local --import tsx scripts/verify-firebase.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.116.0",
+    "firebase-admin": "^14.4.0",
     "next": "16.3.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -3,9 +3,11 @@ import { AddLinkForm } from "@/components/add-link-form";
 import { JobList } from "@/components/job-list";
 import { SignOutButton } from "@/components/sign-out-button";
 import { SourceFilter } from "@/components/source-filter";
-import { parseJobListQuery } from "@/lib/jobs/query";
-import { SOURCE_LABELS, toStoredJobPosting } from "@/lib/jobs/types";
-import { createSupabaseServerClient, getVerifiedUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/next";
+import { getAdminFirestore } from "@/lib/firebase/admin";
+import { applyJobListQuery, parseJobListQuery } from "@/lib/jobs/query";
+import { listJobPostings } from "@/lib/jobs/repository";
+import { SOURCE_LABELS, type StoredJobPosting } from "@/lib/jobs/types";
 
 // Kişisel sayfa: her istekte sunucuda doğrulanır, statik çıktı üretilmez.
 export const dynamic = "force-dynamic";
@@ -17,23 +19,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   if (!user) redirect("/login");
 
   const query = parseJobListQuery(await searchParams);
-  const supabase = await createSupabaseServerClient();
 
-  let request = supabase
-    .from("job_postings")
-    .select("*")
-    .order("first_seen_at", { ascending: query.sort === "oldest" })
-    .order("created_at", { ascending: query.sort === "oldest" })
-    .limit(500);
-  if (query.source) request = request.eq("source", query.source);
-
-  const [{ data: rows, error }, { count: totalCount }] = await Promise.all([
-    request,
-    supabase.from("job_postings").select("id", { count: "exact", head: true }),
-  ]);
-
-  const jobs = (rows ?? []).map(toStoredJobPosting);
-  const total = totalCount ?? 0;
+  let allJobs: StoredJobPosting[] = [];
+  let loadError = false;
+  try {
+    allJobs = await listJobPostings(getAdminFirestore(), user.id);
+  } catch {
+    loadError = true;
+  }
+  const jobs = applyJobListQuery(allJobs, query);
+  const total = allJobs.length;
 
   return (
     <main className="container">
@@ -50,9 +45,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       <section className="card">
         <h2>İlanlar {total > 0 ? `(${jobs.length} / ${total})` : ""}</h2>
         <SourceFilter query={query} />
-        {error ? (
+        {loadError ? (
           <p className="message error" role="alert">
-            İlanlar yüklenemedi. Sayfayı yenileyin; sorun sürerse Supabase bağlantısını kontrol edin.
+            İlanlar yüklenemedi. Sayfayı yenileyin; sorun sürerse Firebase bağlantısını kontrol edin.
           </p>
         ) : total === 0 ? (
           <div className="empty">

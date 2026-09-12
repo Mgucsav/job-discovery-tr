@@ -27,3 +27,17 @@ export function buildJobListHref(query: JobListQuery): string {
   const encoded = search.toString();
   return encoded ? `/?${encoded}` : "/";
 }
+
+export interface SortableJob {
+  source: JobSource;
+  firstSeenAt: string;
+}
+
+// Kişisel ölçekte liste bellekte filtrelenir ve sıralanır (bileşik Firestore indeksi gerekmez).
+export function applyJobListQuery<T extends SortableJob>(jobs: readonly T[], query: JobListQuery): T[] {
+  const filtered = query.source ? jobs.filter((job) => job.source === query.source) : [...jobs];
+  filtered.sort((a, b) =>
+    query.sort === "oldest" ? a.firstSeenAt.localeCompare(b.firstSeenAt) : b.firstSeenAt.localeCompare(a.firstSeenAt),
+  );
+  return filtered;
+}

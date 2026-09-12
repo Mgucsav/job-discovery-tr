@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { establishSession } from "@/lib/auth/next";
+import { LOGIN_ERRORS } from "@/lib/auth/messages";
+import { signInWithPassword } from "@/lib/auth/session";
 
 export interface LoginState {
   error: string | null;
@@ -12,11 +14,9 @@ export async function signIn(_previous: LoginState, formData: FormData): Promise
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "E-posta ve şifre gerekli." };
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    // Ayrıntı verilmez: hangi bilginin yanlış olduğu dışarı sızdırılmaz.
-    return { error: "Giriş başarısız. E-posta ve şifreyi kontrol edin." };
-  }
+  const result = await signInWithPassword(email, password);
+  if (!result.ok) return { error: LOGIN_ERRORS[result.reason] };
+
+  await establishSession(result.idToken);
   redirect("/");
 }

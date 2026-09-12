@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getVerifiedUser } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/auth/next";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
