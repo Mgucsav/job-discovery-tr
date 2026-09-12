@@ -1,0 +1,23 @@
+{
+  "name": "personel-job-discover-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Türkiye odaklı, e-posta tabanlı kişisel iş ilanı keşif çekirdeği",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "discover": "node --env-file-if-exists=.env.local --import tsx src/cli.ts",
+    "discover:fixtures": "node --import tsx src/fixture-cli.ts",
+    "oauth:setup": "node --env-file-if-exists=.env.local --import tsx src/gmail/oauth-cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

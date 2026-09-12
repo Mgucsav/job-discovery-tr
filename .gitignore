@@ -1,0 +1,25 @@
+# Bağımlılıklar ve derleme çıktıları
+node_modules/
+dist/
+coverage/
+
+# Yerel sırlar ve OAuth token'ları
+.env
+.env.*
+!.env.example
+*.token.json
+credentials.json
+
+# Yerel/kişisel veriler
+data/
+private/
+*.eml
+*.mbox
+*.pdf
+*.doc
+*.docx
+
+# Editör ve işletim sistemi
+.DS_Store
+Thumbs.db
+.vscode/*.local.json

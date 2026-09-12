@@ -1,0 +1,42 @@
+[
+  {
+    "id": "fixture-linkedin-001",
+    "receivedAt": "2026-09-10T08:00:00.000Z",
+    "from": "LinkedIn Jobs <jobalerts-noreply@linkedin.com>",
+    "subject": "Yeni yazılım ilanları",
+    "text": "",
+    "html": "<html><body><a href=\"https://www.linkedin.com/jobs/view/kidemli-typescript-gelistirici-4290012345?trk=email_job_alert\">Kıdemli TypeScript Geliştirici</a><a href=\"https://www.linkedin.com/comm/jobs/view/4290012345?trackingId=secret\">İlanı gör</a></body></html>"
+  },
+  {
+    "id": "fixture-linkedin-duplicate-002",
+    "receivedAt": "2026-09-11T08:00:00.000Z",
+    "from": "LinkedIn <jobs-listings@linkedin.com>",
+    "subject": "Hatırlatma",
+    "text": "https://www.linkedin.com/jobs/view/4290012345?utm_source=email",
+    "html": ""
+  },
+  {
+    "id": "fixture-kariyer-001",
+    "receivedAt": "2026-09-10T09:00:00.000Z",
+    "from": "Kariyer.net İş Alarmı <is-alarmi@kariyer.net>",
+    "subject": "Yeni ilan bulundu",
+    "text": "",
+    "html": "<a href=\"https://www.kariyer.net/is-ilani/ornek-teknoloji-backend-gelistirici-9876543?utm_campaign=alarm\">Backend Geliştirici</a>"
+  },
+  {
+    "id": "fixture-indeed-001",
+    "receivedAt": "2026-09-10T10:00:00.000Z",
+    "from": "Indeed Job Alert <alert@indeed.com>",
+    "subject": "Node.js jobs",
+    "text": "",
+    "html": "<a href=\"https://tr.indeed.com/rc/clk?jk=a1b2c3d4e5f60718\">Takip bağlantısı</a><a href=\"https://tr.indeed.com/viewjob?jk=A1B2C3D4E5F60718&amp;from=jobAlert\">Node.js Geliştirici</a>"
+  },
+  {
+    "id": "fixture-unresolved-001",
+    "receivedAt": "2026-09-10T11:00:00.000Z",
+    "from": "LinkedIn Jobs <jobalerts-noreply@linkedin.com>",
+    "subject": "Önerileriniz hazır",
+    "text": "https://lnkd.in/tracking-only ve https://evil.example/redirect?to=linkedin",
+    "html": ""
+  }
+]
