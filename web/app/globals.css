@@ -1,0 +1,284 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c1f24;
+  --muted: #5f6672;
+  --border: #d9dde3;
+  --accent: #1f5eff;
+  --accent-text: #ffffff;
+  --danger: #b42318;
+  --success: #067647;
+  --warning-bg: #fff7e6;
+  --warning-border: #f2c14e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --surface: #1a1e24;
+    --text: #e8eaee;
+    --muted: #9aa3ad;
+    --border: #2c333c;
+    --accent: #6d95ff;
+    --accent-text: #0b1020;
+    --danger: #ff8a80;
+    --success: #6fd39a;
+    --warning-bg: #2a2410;
+    --warning-border: #8a6d1d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+a {
+  color: var(--accent);
+}
+
+.container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.topbar h1 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.topbar .who {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+button,
+.button {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button.primary,
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.message {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.message.error {
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.message.success {
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filters .group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.filters .group-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-right: 4px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.job {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.job-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.job-title {
+  font-weight: 600;
+}
+
+.job-title.missing {
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.job-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 4px;
+}
+
+.job-desc {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+
+.job-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.empty {
+  border: 1px dashed var(--warning-border);
+  background: var(--warning-bg);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.empty strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.login {
+  max-width: 400px;
+  margin: 10vh auto 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

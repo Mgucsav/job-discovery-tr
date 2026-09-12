@@ -23,3 +23,14 @@ private/
 .DS_Store
 Thumbs.db
 .vscode/*.local.json
+
+# Next.js / Vercel çıktıları ve yerel bağlantı dosyaları (web/)
+.next/
+out/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+
+# Supabase CLI yerel durumu
+supabase/.temp/
+supabase/.branches/

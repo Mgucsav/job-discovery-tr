@@ -1,0 +1,10 @@
+# Next.js çıktıları ve yerel sırlar (kök .gitignore ile birlikte geçerlidir)
+.next/
+out/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+node_modules/
