@@ -50,7 +50,6 @@ test("doğrulanmamış, kısaltılmış veya HTTP bağlantılar reddedilir", () 
     "not a url",
     "http://www.linkedin.com/jobs/view/4290012345",
     "https://lnkd.in/abc123",
-    "https://tr.indeed.com/rc/clk?jk=a1b2c3d4e5f60718",
     "https://evil.example/?next=https://linkedin.com/jobs/view/4290012345",
     "https://www.linkedin.com/jobs/search/?keywords=data",
   ]) {

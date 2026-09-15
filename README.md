@@ -38,10 +38,10 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
 
 - Reads only the messages under one Gmail label (default `Is-Alarmi`) using the read-only Gmail API scope `https://www.googleapis.com/auth/gmail.readonly`.
 - Normalises each MIME message (text + HTML parts), extracts links, and keeps only **direct, HTTPS job-posting URLs** on the allowed domains:
-  - LinkedIn: `https://www.linkedin.com/jobs/view/<id>` (also `/comm/jobs/view/…` and slugged variants)
+  - LinkedIn: `https://www.linkedin.com/jobs/view/<id>` (also `/comm/jobs/view/…`, slugged variants, and `/jobs/…?currentJobId=<id>` from search/recommendation pages)
   - Kariyer.net: `https://www.kariyer.net/is-ilani/<slug>-<id>`
-  - Indeed: `https://tr.indeed.com/viewjob?jk=<key>`
-- Rejects shortened/redirect links (`lnkd.in`, Indeed `/rc/clk`, unknown redirectors), plain `http://`, and URLs carrying user info. Tracking parameters are dropped and the URL is canonicalised.
+  - Indeed: `https://tr.indeed.com/viewjob?jk=<key>`, `/jobs?…&vjk=<key>`, and the `/rc/clk?jk=<key>` / `/pagead/clk?jk=<key>` click links (the key is read from the URL; no redirect is ever followed)
+- Rejects shortened/opaque links (`lnkd.in`, `engage.indeed.com`, unknown redirectors), plain `http://`, and URLs carrying user info. Tracking parameters are dropped and the URL is canonicalised.
 - Deduplicates by `source + sourceJobId`. Similar postings on different sites are **not** merged.
 - Takes the title only when a trustworthy link label exists; otherwise it is stored as `null` (never invented). Description is always "missing" at this stage.
 - Writes the postings to the configured store:

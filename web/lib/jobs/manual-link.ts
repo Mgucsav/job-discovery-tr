@@ -12,7 +12,7 @@ export interface ManualLinkInput {
 export type ManualLinkResult = { ok: true; input: StoredJobPostingInput } | { ok: false; error: string };
 
 export const MANUAL_LINK_URL_ERROR =
-  "Yalnızca doğrudan HTTPS ilan bağlantıları kabul edilir: LinkedIn (/jobs/view/ID), Kariyer.net (/is-ilani/...-ID) veya Indeed (/viewjob?jk=...). Kısaltılmış veya yönlendirme bağlantıları reddedilir.";
+  "Bağlantı tanınmadı. Kabul edilenler: LinkedIn ilan sayfası (…/jobs/view/ID veya …/jobs/…?currentJobId=ID), Kariyer.net (…/is-ilani/…-ID), Indeed (…/viewjob?jk=… veya …/jobs?…vjk=…). Kısaltılmış (lnkd.in) bağlantılar kabul edilmez.";
 
 export const FIELD_LIMITS = { title: 240, company: 200, location: 200, description: 5000 } as const;
 

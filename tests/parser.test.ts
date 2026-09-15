@@ -23,9 +23,28 @@ test("yalnızca izin verilen doğrudan HTTPS ilan URL'lerini kabul eder", () => 
 
   assert.equal(validateJobUrl("http://www.linkedin.com/jobs/view/4290012345"), null);
   assert.equal(validateJobUrl("https://lnkd.in/abc123"), null);
-  assert.equal(validateJobUrl("https://tr.indeed.com/rc/clk?jk=a1b2c3d4e5f60718"), null);
   assert.equal(validateJobUrl("https://evil.example/?next=https://linkedin.com/jobs/view/4290012345"), null);
   assert.equal(validateJobUrl("https://linkedin.com.evil.example/jobs/view/4290012345"), null);
+  assert.equal(validateJobUrl("https://www.linkedin.com/jobs/search/?keywords=veri"), null);
+  assert.equal(validateJobUrl("https://www.linkedin.com/in/someone/?currentJobId=4290012345"), null);
+  assert.equal(validateJobUrl("https://tr.indeed.com/cmp/company?vjk=a1b2c3d4e5f60718"), null);
+});
+
+test("arama/öneri sayfalarındaki açık ilan ve Indeed tıklama bağlantıları kimliğe göre kanonikleşir", () => {
+  assert.deepEqual(validateJobUrl("https://www.linkedin.com/jobs/search/?currentJobId=4290012345&keywords=veri&refId=abc"), {
+    source: "linkedin",
+    sourceJobId: "4290012345",
+    canonicalUrl: "https://www.linkedin.com/jobs/view/4290012345",
+  });
+  assert.equal(validateJobUrl("https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4290012345")?.sourceJobId, "4290012345");
+  assert.equal(validateJobUrl("https://www.linkedin.com/jobs/view/4290012345/?alternateChannel=search&trackingId=xyz")?.sourceJobId, "4290012345");
+  assert.deepEqual(validateJobUrl("https://tr.indeed.com/jobs?q=data+analyst&l=%C4%B0stanbul&vjk=A1B2C3D4E5F60718"), {
+    source: "indeed",
+    sourceJobId: "a1b2c3d4e5f60718",
+    canonicalUrl: "https://tr.indeed.com/viewjob?jk=a1b2c3d4e5f60718",
+  });
+  assert.equal(validateJobUrl("https://tr.indeed.com/rc/clk?jk=a1b2c3d4e5f60718&from=alert")?.canonicalUrl, "https://tr.indeed.com/viewjob?jk=a1b2c3d4e5f60718");
+  assert.equal(validateJobUrl("https://www.indeed.com/pagead/clk?jk=a1b2c3d4e5f60718")?.source, "indeed");
 });
 
 test("HTML başlığını alır; genel çağrı metnini başlık diye uydurmaz", () => {

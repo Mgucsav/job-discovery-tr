@@ -18,7 +18,7 @@ Gmail readonly API → MIME gövde normalizasyonu → URL çıkarma/doğrulama
 - Gmail erişimi yalnızca `https://www.googleapis.com/auth/gmail.readonly` OAuth kapsamını ister.
 - Yalnızca ayarlanan Gmail etiketindeki iletiler okunur.
 - LinkedIn, Kariyer.net ve Indeed için yalnızca izin verilen alan adlarındaki doğrudan HTTPS ilan yolları kabul edilir.
-- `lnkd.in`, Indeed `/rc/clk`, bilinmeyen yönlendirme alan adları, HTTP bağlantıları ve kullanıcı bilgisi taşıyan URL'ler reddedilir.
+- `lnkd.in`, `engage.indeed.com` gibi kapalı yönlendirmeler, HTTP bağlantıları ve kullanıcı bilgisi taşıyan URL'ler reddedilir. LinkedIn `?currentJobId=`, Indeed `?vjk=` ve `/rc/clk?jk=` biçimleri kimlik adresten okunarak (yönlendirme takip edilmeden) kabul edilir.
 - Takip sorguları atılır ve URL kanonik hale getirilir.
 - Tekillik anahtarı `source + sourceJobId`'dir. Siteler arası benzer ilanlar birleştirilmez.
 - Başlık yalnızca güvenilir bağlantı metninde varsa alınır; yoksa `null`/`missing` saklanır. Açıklama bu aşamada her zaman `missing`'dir.
