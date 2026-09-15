@@ -178,7 +178,7 @@ npm run discover          # .env.local: JOB_STORE=firestore, JOB_OWNER_EMAIL=<we
 Günlük otomatik çalışma (Windows Görev Zamanlayıcı, her gün 09:00 ve 18:00; kaçırılırsa bilgisayar açılınca çalışır). Çıktı `data/discover.log` dosyasına eklenir:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scriptsegister-discovery-task.ps1
+powershell -ExecutionPolicy Bypass -File scripts\register-discovery-task.ps1
 ```
 
 Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unregister-ScheduledTask -TaskName JobDiscovery`.
