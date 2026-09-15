@@ -1,199 +1,361 @@
-# Kişisel İş İlanı Keşif Sistemi — Aşama 1
+# job-discovery-tr — Personal Job Discovery System
 
-Bu proje, LinkedIn, Kariyer.net ve Indeed üzerinde kullanıcı tarafından oluşturulan iş alarmı e-postalarından ilan keşfeder. Siteleri scrape etmez, site hesabına giriş yapmaz, aday arama API'si varmış gibi davranmaz ve başvuru göndermez.
+A personal, single-user system that discovers job postings from the **job-alert e-mails** that LinkedIn, Kariyer.net and Indeed send to your Gmail, stores them durably in **Cloud Firestore**, and shows them in a private **Next.js web app** deployed on **Vercel**.
 
-> **Pilot ayrıştırıcı uyarısı:** Ayrıştırıcılar kişisel veri içermeyen temsili e-posta fixture'larıyla doğrulandı. Gerçek alarm e-postalarının güncel şablonları henüz görülmediği için canlı kullanımda çözümlenemeyen e-postalar raporlanmalı ve şablon değişikliklerine göre ayrıştırıcılar kontrollü biçimde güncellenmelidir.
+It deliberately does **not** scrape job sites, log into them, pretend to have a candidate-search API, or submit applications. Everything it knows comes from e-mails you asked the job sites to send you, plus links you paste in yourself.
 
-## Çalışan mimari
+> Turkish version of this document: [README.tr.md](README.tr.md)
 
-Akış şöyledir:
+Live instance (private, login required): `https://job-discovery-tr.vercel.app`
+
+---
+
+## Table of contents
+
+1. [What it does today](#what-it-does-today)
+2. [Architecture](#architecture)
+3. [Repository layout](#repository-layout)
+4. [Data model](#data-model)
+5. [Security model](#security-model)
+6. [Requirements](#requirements)
+7. [Setup](#setup)
+   - [1. Firebase project](#1-firebase-project)
+   - [2. Local environment files](#2-local-environment-files)
+   - [3. Gmail: alerts, label, OAuth](#3-gmail-alerts-label-oauth)
+   - [4. Vercel](#4-vercel)
+8. [Running](#running)
+9. [Scheduling (Windows Task Scheduler)](#scheduling-windows-task-scheduler)
+10. [Verification and tests](#verification-and-tests)
+11. [Operational notes](#operational-notes)
+12. [Limitations and roadmap](#limitations-and-roadmap)
+
+---
+
+## What it does today
+
+**Discovery (CLI, `npm run discover`)**
+
+- Reads only the messages under one Gmail label (default `Is-Alarmi`) using the read-only Gmail API scope `https://www.googleapis.com/auth/gmail.readonly`.
+- Normalises each MIME message (text + HTML parts), extracts links, and keeps only **direct, HTTPS job-posting URLs** on the allowed domains:
+  - LinkedIn: `https://www.linkedin.com/jobs/view/<id>` (also `/comm/jobs/view/…` and slugged variants)
+  - Kariyer.net: `https://www.kariyer.net/is-ilani/<slug>-<id>`
+  - Indeed: `https://tr.indeed.com/viewjob?jk=<key>`
+- Rejects shortened/redirect links (`lnkd.in`, Indeed `/rc/clk`, unknown redirectors), plain `http://`, and URLs carrying user info. Tracking parameters are dropped and the URL is canonicalised.
+- Deduplicates by `source + sourceJobId`. Similar postings on different sites are **not** merged.
+- Takes the title only when a trustworthy link label exists; otherwise it is stored as `null` (never invented). Description is always "missing" at this stage.
+- Writes the postings to the configured store:
+  - `JOB_STORE=firestore` (production): the same Firestore account the web app reads, tagged `acquisitionMethod: "gmail"` with the Gmail message id.
+  - `JOB_STORE=json` (default / local pilot): `data/jobs.json`.
+- Prints a run report (Gmail status, e-mails read, unresolved e-mails, per-source found/new/duplicate counts, repository errors) and, with Firestore, persists the report so the web app can show "last discovery".
+
+**Web app (`web/`)**
+
+- Email + password login for exactly one account (public sign-up is disabled in Firebase Auth).
+- Job list with source filter (LinkedIn / Kariyer.net / Indeed), acquisition filter (manual / Gmail), first-seen sorting, "Open posting" and "Delete".
+- "Add link": paste a job URL; it passes through the same `validateJobUrl` rules as the discovery pipeline, is canonicalised and stored with `acquisitionMethod: "manual"`. Title / company / location / description are optional and stay `null` when empty.
+- Shows the last Gmail discovery run (time, e-mails read, new / duplicate / unresolved). With an empty database it says explicitly that there are no postings yet and whether discovery has ever run — no sample data is shown as if it were real.
+- A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`) with the same session checks, used by the end-to-end verification script.
+
+**Automation**
+
+- A Windows Task Scheduler task runs discovery twice a day on your machine (see [Scheduling](#scheduling-windows-task-scheduler)).
+
+---
+
+## Architecture
 
 ```text
-Gmail readonly API → MIME gövde normalizasyonu → URL çıkarma/doğrulama
-                  → kaynak bazlı ilan sözleşmesi → JobRepository → koşu raporu
+ LinkedIn / Kariyer.net / Indeed job-alert e-mails
+                    │
+                    ▼
+     Gmail (label "Is-Alarmi", read-only OAuth)
+                    │  src/gmail/client.ts
+                    ▼
+   MIME normalisation → link extraction → URL validation
+                    │  src/discovery/parser.ts
+                    ▼
+        JobPosting contract (source + sourceJobId key)
+                    │  src/discovery/service.ts
+                    ▼
+   JobRepository ── FirestoreJobRepository ──► Cloud Firestore ◄── Next.js web app (Vercel)
+                └── JsonFileJobRepository ──► data/jobs.json         web/ (Admin SDK, session cookies)
+                    │
+                    ▼
+              run report (stdout + users/{uid}/discoveryRuns)
 ```
 
-- Gmail erişimi yalnızca `https://www.googleapis.com/auth/gmail.readonly` OAuth kapsamını ister.
-- Yalnızca ayarlanan Gmail etiketindeki iletiler okunur.
-- LinkedIn, Kariyer.net ve Indeed için yalnızca izin verilen alan adlarındaki doğrudan HTTPS ilan yolları kabul edilir.
-- `lnkd.in`, Indeed `/rc/clk`, bilinmeyen yönlendirme alan adları, HTTP bağlantıları ve kullanıcı bilgisi taşıyan URL'ler reddedilir.
-- Takip sorguları atılır ve URL kanonik hale getirilir.
-- Tekillik anahtarı `source + sourceJobId`'dir. Siteler arası benzer ilanlar birleştirilmez.
-- Başlık yalnızca güvenilir bağlantı metninde varsa alınır; yoksa `null`/`missing` saklanır. Açıklama bu aşamada her zaman `missing`'dir.
-- Her çalışmada Gmail durumu, okunan ve çözümlenemeyen e-posta sayısı, kaynak başına bulunan/yeni/tekrar ilanlar ile kaynak/depo hataları ayrı raporlanır. Sıfır ilan bir hata sayılmaz.
+The shared Firestore document logic (`src/storage/job-posting-documents.ts`, `src/storage/job-posting-store.ts`) is written against a small structural interface instead of `firebase-admin`, so the CLI and the web app use **one implementation** of the merge rule while each keeps its own `firebase-admin` instance.
 
-## Gereksinimler ve yerel kurulum
+---
 
-- Node.js 22 veya üzeri
-- Bir Google Cloud projesi ve Gmail API etkinleştirmesi
-- İş alarmı e-postalarının yönlendirildiği/teslim edildiği ayrı bir Gmail hesabı
+## Repository layout
 
-Kurulum:
-
-```powershell
-npm install
-Copy-Item .env.example .env.local
+```text
+.
+├── src/                         # CLI core (Node 22+, TypeScript, ESM)
+│   ├── cli.ts                   # npm run discover
+│   ├── fixture-cli.ts           # npm run discover:fixtures (no Gmail access)
+│   ├── config.ts                # environment → AppConfig (store selection)
+│   ├── domain.ts                # JobPosting / StoredJobPosting / run report contracts
+│   ├── discovery/parser.ts      # link extraction, validateJobUrl, parseJobAlertEmail
+│   ├── discovery/service.ts     # runDiscovery + run report
+│   ├── gmail/                   # read-only Gmail client, OAuth helper (npm run oauth:setup)
+│   ├── firebase/admin.ts        # firebase-admin bootstrap for the CLI
+│   └── storage/
+│       ├── repository.ts        # JobRepository interface
+│       ├── json-file-repository.ts
+│       ├── memory-repository.ts
+│       ├── job-posting-documents.ts   # pure document logic (ids, merge rule, parsing)
+│       └── job-posting-store.ts       # structural store interface + FirestoreJobRepository
+├── tests/                       # node:test suites for the core (fixtures contain no personal data)
+├── web/                         # Next.js 16 app (App Router, TypeScript)
+│   ├── app/                     # pages, server actions, /api routes, proxy.ts
+│   ├── components/
+│   ├── lib/auth/                # Identity Toolkit sign-in, session cookies
+│   ├── lib/firebase/            # firebase-admin bootstrap for the web app
+│   ├── lib/jobs/                # manual link preparation, list query, repository wrappers
+│   ├── lib/core.ts              # re-exports the shared core from ../src
+│   ├── scripts/verify-firebase.ts
+│   └── tests/
+├── scripts/                     # Windows scheduler runner + registration script
+├── firestore.rules              # deny-all client rules
+├── firestore.indexes.json
+└── firebase.json
 ```
 
-`.env.local` içinde en az `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` ve `GMAIL_JOB_LABEL` alanlarını doldurun. `.env.local` Git tarafından yok sayılır.
+---
 
-## Gmail OAuth kurulumu
+## Data model
 
-1. Google Cloud Console'da Gmail API'yi etkinleştirin.
-2. OAuth onay ekranını yapılandırın. Uygulama test modundaysa Gmail hesabınızı test kullanıcısı ekleyin.
-3. `Desktop app` türünde bir OAuth istemcisi oluşturun.
-4. İstemci kimliğini ve sırrını `.env.local` dosyasına koyun.
-5. Gmail'de iş alarmı iletilerine tek ve açık bir etiket verin; tam etiket adını `GMAIL_JOB_LABEL` olarak ayarlayın.
-6. Yetkilendirme yardımcısını başlatın:
-
-```powershell
-npm run oauth:setup
-```
-
-Komut yerel `127.0.0.1` callback sunucusu açar ve bir Google yetkilendirme adresi gösterir. Adresi tarayıcıda elle açın. Başarıdan sonra refresh token doğrudan gitignore kapsamındaki `.env.local` dosyasına yazılır; konsola basılmaz. Gmail parolası hiçbir zaman istenmez veya saklanmaz.
-
-Google hesabından erişimi iptal etmek için Google Hesabı → Güvenlik → Üçüncü taraf erişimi bölümünden uygulamanın iznini kaldırın.
-
-## Çalıştırma
-
-Canlı Gmail etiketi üzerinde keşif:
-
-```powershell
-npm run discover
-```
-
-Varsayılan yerel çıktı `data/jobs.json` dosyasıdır. Koşu raporu JSON olarak terminale yazılır. `GMAIL_MAX_MESSAGES` bir çalışmadaki e-posta üst sınırını (1–500) belirler.
-
-Gerçek Gmail erişimi olmadan fixture koşusu:
-
-```powershell
-npm run discover:fixtures
-```
-
-Kalite kontrolleri:
-
-```powershell
-npm test
-npm run typecheck
-npm run build
-```
-
-## Veri sözleşmesi
+### `JobPosting` (discovery contract, `src/domain.ts`)
 
 ```ts
 interface JobPosting {
   source: "linkedin" | "kariyer" | "indeed";
   sourceJobId: string;
-  url: string;                  // kanonik ve doğrulanmış HTTPS adresi
+  url: string;                    // canonical, validated HTTPS URL
   title: string | null;
   titleStatus: "present" | "missing";
   descriptionStatus: "missing";
-  firstSeenAt: string;          // ISO-8601
-  sourceEmailId: string;
+  firstSeenAt: string;            // ISO-8601
+  sourceEmailId: string;          // Gmail message id that first surfaced the posting
 }
 ```
 
-İlk görülme zamanı ve onu sağlayan kaynak e-posta kimliği korunur. Daha eski bir e-posta sonradan işlenirse ilk görülme bilgisi geriye çekilir. Eksik başlık daha sonraki bir e-postada bulunursa tamamlanabilir.
+### Firestore layout
 
-## Veri güvenliği
+```text
+users/{uid}/jobPostings/{source}__{sourceJobId}
+users/{uid}/discoveryRuns/{startedAt}
+```
 
-- `.env`, `.env.*`, token dosyaları, `credentials.json`, `data/`, `private/`, `.eml`, `.mbox`, PDF ve Word/CV dosyaları `.gitignore` kapsamındadır.
-- İstemci sırrı ve refresh token yalnızca yerel `.env.local` ortam dosyasındadır.
-- Tam e-posta gövdeleri kalıcı depoya yazılmaz. Yalnızca ilan alanları ve Gmail e-posta kimliği tutulur.
-- Fixture'lar hayalî kimlikler/şirket metinleri içerir; gerçek kişi, adres veya gerçek e-posta gövdesi içermez.
-- Hata mesajları token'ı loglamaz. Google'ın hata yanıtının yalnızca sınırlı bir bölümü teşhis amacıyla gösterilir.
+Posting document fields: `ownerId`, `source`, `sourceJobId`, `url`, `title`, `company`, `location`, `description` (each optional field is `null` when unknown), `firstSeenAt`, `acquisitionMethod` (`"manual"` | `"gmail"`), `sourceEmailId` (`null` for manual entries — a fake Gmail id is never written), `createdAt`, `updatedAt`. Time fields are ISO-8601 strings, so lexicographic order equals chronological order and no Firestore `Timestamp` objects cross module boundaries.
 
-Yerel JSON deposu tek süreçli geliştirme/pilot kullanım içindir. **Vercel'in geçici dosya sistemi kalıcı veri tabanı değildir ve bu depo Vercel üretim kalıcılığı olarak tasarlanmamıştır.** `JobRepository` arayüzü, sonraki dağıtımda Postgres gibi kalıcı bir harici veri tabanı adaptörüyle değiştirilmelidir. Zamanlanmış görev de aynı keşif servisini çağırabilir; bu aşamada canlı zamanlama yoktur. Kalıcı depolama ve Vercel dağıtımı, aşağıdaki Aşama 2 web arayüzünde Firebase (Firestore) ile sağlanır; Aşama 3 ile CLI keşfi de aynı depoya yazar.
+The document id is the uniqueness key (owner + source + source job id).
 
-## Aşama 2: Web arayüzü (web/) ve Firebase kalıcılığı
+### Merge rule (identical for CLI and web)
 
-`web/` klasörü, ilanları Cloud Firestore'da kalıcı tutan ve yalnızca tek bir Firebase Authentication hesabının kullandığı Next.js + TypeScript uygulamasıdır. Vercel'de **Root Directory = `web/`** olarak dağıtılır. Mevcut CLI komutları (`discover`, `discover:fixtures`, `oauth:setup`) korunur; `discover` Aşama 3 ile `JOB_STORE=firestore` seçildiğinde aynı Firestore hesabına yazar.
+When a posting already exists:
 
-Yapabildikleri:
+1. If the incoming sighting is **older**, `firstSeenAt`, `acquisitionMethod` and `sourceEmailId` are moved back to it (the earliest sighting wins).
+2. Missing `title` / `company` / `location` / `description` are filled in; existing values are **never** overwritten.
+3. Otherwise the write is reported as `unchanged`.
 
-- E-posta + şifre ile giriş (Firebase Authentication); herkese açık kayıt kapalı.
-- İlan listesi, kaynak filtresi (LinkedIn / Kariyer.net / Indeed), ilk görülme tarihine göre sıralama, "İlanı aç" ve "Sil".
-- "Bağlantı ekle": yalnızca `validateJobUrl` kurallarından geçen doğrudan HTTPS ilan bağlantıları kabul edilir; URL kanonik hale getirilir. Başlık/şirket/konum/açıklama isteğe bağlıdır, boş alanlar `null` kalır. Manuel kayda Gmail e-posta kimliği yazılmaz.
-- Boş veri tabanında açıkça "Henüz ilan yok; Gmail keşfi bağlı değil" gösterilir; örnek veri yoktur.
+Outcomes: `inserted` | `updated` | `unchanged`. This is the same behaviour the local JSON repository has had since phase 1 and it is covered by unit tests with an in-memory store.
 
-Bilinçli olarak yapmadıkları: otomatik başvuru, form doldurma, AI puanlama, canlı (bulut) Gmail zamanlayıcısı. Gmail keşfi Aşama 3 ile aynı Firestore hesabına yazar (aşağıda).
+---
 
-### Veri modeli ve güvenlik
+## Security model
 
-- Firestore yerleşimi: `users/{uid}/jobPostings/{source__sourceJobId}`. Belge kimliği tekillik anahtarıdır (sahip + kaynak + kaynak ilan ID'si). Alanlar: `ownerId`, `source`, `sourceJobId`, kanonik `url`, `title`/`company`/`location`/`description` (varsa, yoksa `null`), `firstSeenAt`, `acquisitionMethod` (`manual` | `gmail`), yalnızca Gmail kayıtları için `sourceEmailId`, `createdAt`, `updatedAt`.
-- `web/lib/jobs/merge.ts` içindeki birleştirme kuralı `JsonFileJobRepository.upsert` ile aynıdır: yeni ilan `inserted`; daha eski görülme ilk görülme bilgisini ve edinilme kaynağını geri çeker; eksik alanlar tamamlanır, mevcut değer ezilmez; aksi hâlde `unchanged`. Yazma bir Firestore transaction'ı içinde yapılır.
-- `firestore.rules` **tüm istemci/anonim erişimi reddeder** (`allow read, write: if false`). Veriye yalnızca uygulamanın sunucu tarafı (Admin SDK) doğrulanmış oturumla erişir; `uid` her zaman oturum çerezinden türetilir, istekten alınmaz.
-- Oturum: giriş sunucu tarafında Identity Toolkit REST ile yapılır, Admin SDK `createSessionCookie` ile **HttpOnly, Secure, SameSite=Lax** çerez üretilir. Her sayfa, sunucu eylemi ve route handler `verifySessionCookie(…, checkRevoked=true)` ile doğrulanmış kullanıcı ister; `proxy.ts` yalnızca çerezi olmayan istekleri `/login`'e yönlendirir ve tek başına yetki kaynağı değildir. Çıkışta refresh token'lar iptal edilir. Kişisel sayfalar `force-dynamic`; statik çıktı üretilmez.
-- Tarayıcıya hiçbir Firebase yapılandırması (API anahtarı dahil) gönderilmez. Sunucu ortam değişkenleri: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (servis hesabı), `FIREBASE_WEB_API_KEY`. Servis hesabı anahtarı yalnızca Vercel proje ayarlarında ve yerel `web/.env.local` içinde bulunur; `*service-account*.json` ve `*-firebase-adminsdk-*.json` dosyaları `.gitignore` kapsamındadır.
-- JSON API (`/api/login`, `/api/logout`, `/api/jobs`) aynı oturum doğrulamasını ve aynı depo fonksiyonlarını kullanır; gövdeli istekler yalnızca `application/json` kabul eder.
+- **Firestore rules deny all client access** (`allow read, write: if false`). Data is reached only through the app server or the CLI, both using the Firebase Admin SDK with a service account. Anonymous requests and even the owner's own ID token get `403` when they call Firestore directly.
+- **Ownership is path-based**: the `uid` always comes from a verified session cookie (web) or from `JOB_OWNER_EMAIL` resolved via Firebase Auth (CLI) — never from request data.
+- **Sessions**: the login form posts email + password to a server action; the server calls the Identity Toolkit REST API, then creates a Firebase **session cookie** (`HttpOnly`, `Secure` in production, `SameSite=Lax`, 5 days). Every page, server action and API route verifies it with `verifySessionCookie(cookie, checkRevoked = true)`. `proxy.ts` only redirects requests that carry no cookie at all; it is not an authorisation boundary. Logout revokes the user's refresh tokens and clears the cookie.
+- **Nothing Firebase-related reaches the browser**: no client SDK, no API key. The only secrets are server-side environment variables (Vercel encrypted env / local `.env.local`), all git-ignored.
+- **Sign-up is disabled** in Firebase Authentication; the one account is created from the Firebase console.
+- **Gmail** access is read-only, restricted to one label; full e-mail bodies are never persisted — only posting fields and the Gmail message id.
+- `.gitignore` covers `.env*`, `data/`, `private/`, service-account keys, `.next/`, `.vercel/`, `.eml/.mbox`, PDFs and Word documents (CVs).
 
-### Yerel çalıştırma
+---
+
+## Requirements
+
+- Node.js **22+** (tested on 24)
+- A Firebase project (Spark/free plan is enough): Authentication (Email/Password) and Cloud Firestore
+- A Google Cloud OAuth "Desktop app" client for the Gmail API (the Firebase project *is* a Google Cloud project — reuse it)
+- A Gmail account that receives your job alerts
+- A Vercel account connected to GitHub (for the web app)
+
+---
+
+## Setup
+
+### 1. Firebase project
+
+1. Create a Firebase project (Analytics optional).
+2. **Authentication → Sign-in method → Email/Password → Enable.**
+3. **Authentication → Users → Add user** — create your own account (this is the only account that will ever log in).
+4. **Authentication → Settings → User actions → uncheck "Enable create (sign-up)"** so nobody else can register through the public API key.
+5. **Firestore Database → Create database** — Standard edition, database id `(default)`, a European location (e.g. `europe-west3`), *production mode*.
+6. Deploy the rules from this repository (they deny all client access):
+
+   ```powershell
+   npx firebase-tools login
+   npx firebase-tools deploy --only firestore --project <your-project-id>
+   ```
+
+   (If the CLI login does not work in your browser, the rules can also be pasted into the console's *Rules* tab, or published through the Firebase Rules REST API with the service account.)
+7. **Project settings → Service accounts → Generate new private key.** Keep the downloaded JSON outside git (for example under `private/`). You need three values from it: `project_id`, `client_email`, `private_key`.
+8. The **Web API key** is under *Project settings → General* (a web app must exist; create one if the list is empty). It is used only server-side to forward the password to Identity Toolkit.
+
+### 2. Local environment files
+
+Root `.env.local` (used by the CLI):
+
+```dotenv
+# Gmail OAuth desktop client (Google Cloud Console)
+GMAIL_CLIENT_ID=
+GMAIL_CLIENT_SECRET=
+GMAIL_REDIRECT_URI=http://127.0.0.1:53682/oauth2/callback
+GMAIL_REFRESH_TOKEN=            # written by npm run oauth:setup
+GMAIL_JOB_LABEL=Is-Alarmi
+GMAIL_MAX_MESSAGES=100
+
+# Store: json (data/jobs.json) or firestore (shared with the web app)
+JOB_STORE=firestore
+JOB_OWNER_EMAIL=you@example.com # the account that logs into the web app
+
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=           # PEM; "\n" escapes are accepted
+```
+
+`web/.env.local` (used by the web app; the same values also go to Vercel):
+
+```dotenv
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+FIREBASE_WEB_API_KEY=
+```
+
+Both files are git-ignored. `.env.example` files document every variable.
+
+### 3. Gmail: alerts, label, OAuth
+
+1. Create job alerts on LinkedIn, Kariyer.net and Indeed (daily e-mail digests) for the searches you care about.
+2. In Gmail, create a filter `from:(linkedin.com OR kariyer.net OR indeed.com)` → *Apply label* → `Is-Alarmi` (or whatever you set in `GMAIL_JOB_LABEL`).
+3. In Google Cloud Console (same project as Firebase):
+   - enable the **Gmail API**;
+   - configure the **OAuth consent screen** (External, testing mode) and add your Gmail address as a **test user**;
+   - create an OAuth client of type **Desktop app** and copy its client id/secret into the root `.env.local`.
+4. Authorise once:
+
+   ```powershell
+   npm install
+   npm run oauth:setup
+   ```
+
+   The helper starts a loopback server on `127.0.0.1:53682`, prints an authorisation URL, and after consent writes the refresh token straight into `.env.local` (it is never printed). Only the read-only Gmail scope is requested; your Gmail password is never asked for.
+
+   Revoke access at any time from *Google Account → Security → Third-party access*.
+
+### 4. Vercel
+
+1. Import the GitHub repository as a new project.
+2. **Root Directory: `web`**, framework Next.js. Keep *"Include source files outside of the Root Directory"* enabled — the web app imports the shared core from `../src`.
+3. Add the four environment variables from `web/.env.local` (Production + Preview).
+4. Deploy. Every push to `master` redeploys.
+
+---
+
+## Running
+
+Core (repository root):
+
+```powershell
+npm install
+npm test                 # node:test suites
+npm run typecheck
+npm run build            # tsc → dist/ (imports are rewritten from .ts to .js)
+npm run discover         # live Gmail → configured store, prints the run report
+npm run discover:fixtures  # parses the bundled fixture e-mails into memory (no Gmail access)
+npm run oauth:setup      # one-time Gmail authorisation
+```
+
+Web app:
 
 ```powershell
 cd web
 npm install
-Copy-Item .env.example .env.local   # Firebase servis hesabı ve Web API anahtarı (Git dışıdır)
 npm test
 npm run typecheck
 npm run build
-npm run dev                         # http://localhost:3000
+npm run dev              # http://localhost:3000
 ```
 
-Firestore kurallarını dağıtmak için (`npx firebase-tools login` sonrası, depo kökünde):
+Exit code of `npm run discover` is `1` when any source or repository error occurred; zero postings is **not** an error.
 
-```powershell
-npx firebase-tools deploy --only firestore --project <firebase-proje-id>
-```
+---
 
-Gerçek uygulamaya karşı uçtan uca doğrulama (şifre terminalde gizli girilir, hiçbir yere yazılmaz):
+## Scheduling (Windows Task Scheduler)
 
-```powershell
-cd web
-npm run verify:firebase -- --base-url https://<uygulama>.vercel.app
-```
-
-Bu komut oturumsuz isteklerin `/login`'e yönlendirildiğini ve API'nin 401 verdiğini, girişle eklenen TEST kaydının sayfa yeniden istendiğinde göründüğünü, tekrar eklemede `unchanged` döndüğünü, kaydın silindiğini, çıkıştan sonra eski çerezin geçersiz olduğunu ve doğrudan Firestore isteklerinin (anonim ve kullanıcının kendi ID token'ı ile) 403 aldığını raporlar.
-
-### Vercel
-
-Proje GitHub deposundan içe aktarılır; **Root Directory: `web`**. Ortam değişkenleri: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_WEB_API_KEY`. `web/` uygulaması depo kökündeki `src/domain.ts` ve `src/discovery/parser.ts` dosyalarını doğrudan içe aktardığı için "Include source files outside of the Root Directory" ayarı açık olmalıdır (varsayılan açıktır).
-
-## Aşama 3: Gmail keşfi → Firestore (web ile ortak depo)
-
-`npm run discover` artık `JOB_STORE=firestore` ile bulduğu ilanları doğrudan web arayüzünün okuduğu Firestore hesabının altına yazar; yerel JSON deposu (`JOB_STORE=json`, varsayılan) korunur.
-
-- Ortak belge mantığı depo kökünde: `src/storage/job-posting-documents.ts` (belge kimliği, birleştirme kuralı, ayrıştırma) ve `src/storage/job-posting-store.ts` (`FirestoreJobRepository`, `upsert/list/delete`, koşu özeti). Web (`web/lib/core.ts`) aynı modülleri içe aktarır; birleştirme kuralı tek yerde yaşar.
-- Yerleşim: `users/{uid}/jobPostings/{source__sourceJobId}` ve `users/{uid}/discoveryRuns/{startedAt}`. Zaman alanları ISO-8601 metindir.
-- Gmail kayıtları `acquisitionMethod: gmail` + `sourceEmailId` ile yazılır; elle eklenen bir ilan daha eski bir e-postada görülürse ilk görülme bilgisi ve edinilme kaynağı geriye çekilir, elle girilen alanlar korunur.
-- Her koşu sonunda rapor Firestore'a kaydedilir; web'de "Son Gmail keşfi: …" satırı görünür. Koşu hiç yoksa arayüz bunu açıkça söyler.
-- Sahip hesap `JOB_OWNER_EMAIL` ile belirlenir; uid Firebase Auth'tan çözülür. CLI, web ile aynı servis hesabı değişkenlerini (`FIREBASE_*`) kullanır.
-- Kök modüller `.ts` uzantılı göreli içe aktarım kullanır (`rewriteRelativeImportExtensions`); `dist/` çıktısı yine `.js`'e yazılır ve Turbopack aynı dosyaları doğrudan çözer.
-
-Çalıştırma (Gmail OAuth kurulumu tamamlandıktan sonra):
-
-```powershell
-npm run discover          # .env.local: JOB_STORE=firestore, JOB_OWNER_EMAIL=<web hesabı>
-```
-
-Günlük otomatik çalışma (Windows Görev Zamanlayıcı, her gün 09:00 ve 18:00; kaçırılırsa bilgisayar açılınca çalışır). Çıktı `data/discover.log` dosyasına eklenir:
+`scripts/register-discovery-task.ps1` registers a task named **JobDiscovery** that runs `scripts/run-discovery.cmd` every day at **09:00 and 18:00** (runs at next start-up if a slot was missed, only when a network is available). Output is appended to `data/discover.log`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\register-discovery-task.ps1
+Start-ScheduledTask -TaskName JobDiscovery          # run once now
+Unregister-ScheduledTask -TaskName JobDiscovery     # remove
 ```
 
-Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unregister-ScheduledTask -TaskName JobDiscovery`.
+---
 
-## Bu aşamanın sınırları
+## Verification and tests
 
-Bu sürüm yalnızca ilan keşfeder. Şunları bilinçli olarak yapmaz:
+**Unit tests**
 
-- İlan uygunluğu veya AI puanlama
-- İlan açıklamasını siteden çekme
-- Sitelerde otomatik gezinme, giriş veya scraping
-- CV okuma, uyarlama ya da üretme
-- Başvuru gönderme
-- Başvuru durumu/takibi
-- Farklı sitelerdeki benzer ilanları aynı ilan diye birleştirme
-- Zamanlanmış canlı görev (Gmail keşfi elle CLI ile çalıştırılır)
+- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling).
+- Web: manual-link preparation, list query parsing/filtering, a guard that `firestore.rules` still denies everything.
 
-Gerçek pilotta `unresolvedEmails` artarsa kişisel içerik paylaşmak yerine mümkünse anonimleştirilmiş HTML yapısı üzerinden yeni bir fixture ve regresyon testi eklenmelidir.
+**End-to-end against the deployed app** (`web/scripts/verify-firebase.ts`):
+
+```powershell
+cd web
+npm run verify:firebase -- --base-url https://<your-app>.vercel.app
+```
+
+It asks for your e-mail and (hidden) password locally, then checks: unauthenticated `/` redirects to `/login` and `/api/jobs` returns 401; login yields an `HttpOnly` session cookie; a TEST posting is inserted, is visible when the page is fetched again, re-adding returns `unchanged`, deleting removes it; after logout the old cookie is rejected; direct Firestore REST calls (anonymous and with the user's own ID token) return 403. Only status codes and booleans are printed.
+
+---
+
+## Operational notes
+
+- **Unresolved e-mails** in the run report are messages under the label that contained no valid posting link (e.g. LinkedIn's "companies hiring near you" digests). They are counted, not guessed at. If real alert e-mails stop parsing, LinkedIn/Kariyer.net/Indeed probably changed their template: add an anonymised fixture and adjust `src/discovery/parser.ts`.
+- `firebase-admin` is pinned to **13.x** in both packages: 14.x pulls the ESM-only `jose@6`, which the Vercel serverless runtime cannot `require()`.
+- The web app's `firebase-admin` Firestore client uses `preferRest: true` for faster cold starts.
+- Rotating the service-account key: generate a new key in Firebase, update both `.env.local` files and the Vercel environment, then delete the old key in Google Cloud IAM.
+- Firebase CLI login is optional; everything in this repository was provisioned with the service account and Google REST APIs.
+
+---
+
+## Limitations and roadmap
+
+Deliberately **not** implemented in this version:
+
+- Fetching job descriptions from the sites, scraping or automated browsing
+- AI scoring / CV matching
+- Submitting applications, form filling, application tracking
+- Merging similar postings across sites
+- Cloud-hosted scheduling (discovery runs on your own machine)
+
+Planned next (human-in-the-loop "assisted apply" track):
+
+1. Application tracking in the web app (status, notes, hide/archive)
+2. Private CV upload and per-posting match score with reasons
+3. A saved answer bank for recurring application questions
+4. A local browser assistant that pre-fills applications and stops at the review step — you press *Submit*
+
+---
+
+## License
+
+Private project; no license granted.
