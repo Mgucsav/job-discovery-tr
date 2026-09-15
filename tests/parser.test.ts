@@ -62,9 +62,32 @@ test("HTML başlığını alır; genel çağrı metnini başlık diye uydurmaz",
   const parsed = parseJobAlertEmail(email);
   assert.equal(parsed.jobs.length, 2);
   assert.equal(parsed.jobs[0]?.title, "Veri Mühendisi");
+  assert.equal(parsed.jobs[0]?.company, null);
   assert.equal(parsed.jobs[0]?.descriptionStatus, "missing");
   assert.equal(parsed.jobs[1]?.title, null);
   assert.equal(parsed.jobs[1]?.titleStatus, "missing");
+});
+
+test("LinkedIn e-posta kartında başlık, şirket ve konum ayrı hücrelerden okunur; iç içe düğme metni başlığa karışmaz", () => {
+  const card = [
+    '<a href="https://www.linkedin.com/comm/jobs/view/4461161459/?trk=eml-x">',
+    '<table><tr><td width="48"><img alt="Şişecam" src="https://media.licdn.com/x.png"></td>',
+    '<td><table><tr><td class="font-semibold">Data Solutions Analyst/TechnoPark</td></tr>',
+    '<tr><td class="text-sm"> Şişecam · İstanbul, Türkiye (Uzaktan) </td></tr></table></td>',
+    '<td><a href="https://www.linkedin.com/comm/jobs/view/4461161459/?trk=eml-btn">Görüntüleyin</a></td></tr></table>',
+    "</a>",
+  ].join("");
+  const parsed = parseJobAlertEmail({ id: "mail-2", receivedAt: "2026-09-15T13:54:25.000Z", from: "LinkedIn <jobs-noreply@linkedin.com>", subject: null, text: "", html: card });
+  assert.equal(parsed.jobs.length, 1);
+  assert.equal(parsed.jobs[0]?.sourceJobId, "4461161459");
+  assert.equal(parsed.jobs[0]?.title, "Data Solutions Analyst/TechnoPark");
+  assert.equal(parsed.jobs[0]?.company, "Şişecam");
+  assert.equal(parsed.jobs[0]?.location, "İstanbul, Türkiye (Uzaktan)");
+
+  // Yalnızca düğme metni olan bağlantı: başlık uydurulmaz.
+  const buttonOnly = parseJobAlertEmail({ id: "mail-3", receivedAt: "2026-09-15T13:54:25.000Z", from: "LinkedIn", subject: null, text: "", html: '<a href="https://www.linkedin.com/jobs/view/4461161460">Görüntüleyin</a>' });
+  assert.equal(buttonOnly.jobs[0]?.title, null);
+  assert.equal(buttonOnly.jobs[0]?.company, null);
 });
 
 test("fixture e-postalarının tamamı kişisel verisiz ve parse edilebilir biçimdedir", async () => {

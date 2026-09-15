@@ -57,11 +57,17 @@ export class JsonFileJobRepository implements JobRepository {
 
     const incomingIsEarlier = posting.firstSeenAt < current.firstSeenAt;
     const improvedTitle = current.title === null && posting.title !== null;
-    if (!incomingIsEarlier && !improvedTitle) return "unchanged";
+    const improvedCompany = (current.company ?? null) === null && posting.company !== null;
+    const improvedLocation = (current.location ?? null) === null && posting.location !== null;
+    if (!incomingIsEarlier && !improvedTitle && !improvedCompany && !improvedLocation) return "unchanged";
 
     this.postings.set(key, {
       ...current,
+      company: current.company ?? null,
+      location: current.location ?? null,
       ...(improvedTitle ? { title: posting.title, titleStatus: "present" as const } : {}),
+      ...(improvedCompany ? { company: posting.company } : {}),
+      ...(improvedLocation ? { location: posting.location } : {}),
       ...(incomingIsEarlier
         ? { firstSeenAt: posting.firstSeenAt, sourceEmailId: posting.sourceEmailId }
         : {}),

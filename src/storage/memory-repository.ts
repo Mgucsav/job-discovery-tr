@@ -11,11 +11,16 @@ export class MemoryJobRepository implements JobRepository {
       this.postings.set(key, posting);
       return "inserted";
     }
+    const next: JobPosting = { ...current };
     if (current.title === null && posting.title !== null) {
-      this.postings.set(key, { ...current, title: posting.title, titleStatus: "present" });
-      return "updated";
+      next.title = posting.title;
+      next.titleStatus = "present";
     }
-    return "unchanged";
+    if (current.company === null && posting.company !== null) next.company = posting.company;
+    if (current.location === null && posting.location !== null) next.location = posting.location;
+    if (next.title === current.title && next.company === current.company && next.location === current.location) return "unchanged";
+    this.postings.set(key, next);
+    return "updated";
   }
 
   public async list(): Promise<JobPosting[]> {

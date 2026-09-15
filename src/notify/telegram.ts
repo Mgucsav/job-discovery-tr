@@ -23,7 +23,8 @@ export function escapeHtml(value: string): string {
 
 function postingLine(posting: NewPostingSummary): string {
   const title = posting.title ? escapeHtml(posting.title) : "Başlık yok";
-  return `• <b>${SOURCE_LABELS[posting.source]}</b> — <a href="${escapeHtml(posting.url)}">${title}</a>`;
+  const meta = [posting.company, posting.location].filter((value): value is string => Boolean(value)).map(escapeHtml).join(" · ");
+  return `• <b>${SOURCE_LABELS[posting.source]}</b> — <a href="${escapeHtml(posting.url)}">${title}</a>${meta ? ` — ${meta}` : ""}`;
 }
 
 function chunk<T>(items: readonly T[], size: number): T[][] {

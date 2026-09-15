@@ -227,7 +227,16 @@ export function parseDiscoveryRunDocument(id: string, data: DocumentData): Store
       const source = JOB_SOURCES.find((candidate) => candidate === record.source);
       const sourceJobId = nullableString(record.sourceJobId);
       const url = nullableString(record.url);
-      if (source && sourceJobId && url) newPostings.push({ source, sourceJobId, url, title: nullableString(record.title) });
+      if (source && sourceJobId && url) {
+        newPostings.push({
+          source,
+          sourceJobId,
+          url,
+          title: nullableString(record.title),
+          company: nullableString(record.company),
+          location: nullableString(record.location),
+        });
+      }
     }
   }
   const rawNotification = (data.notification ?? null) as Record<string, unknown> | null;

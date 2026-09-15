@@ -24,8 +24,8 @@ function baseReport(overrides: Partial<DiscoveryRunReport> = {}): DiscoveryRunRe
       indeed: { status: "ok", jobsFound: 1, newJobs: 0, duplicateJobs: 1, errorCount: 0 },
     },
     newPostings: [
-      { source: "linkedin", sourceJobId: "1", url: "https://www.linkedin.com/jobs/view/1", title: "Veri Analisti <Junior> & Raporlama" },
-      { source: "linkedin", sourceJobId: "2", url: "https://www.linkedin.com/jobs/view/2", title: null },
+      { source: "linkedin", sourceJobId: "1", url: "https://www.linkedin.com/jobs/view/1", title: "Veri Analisti <Junior> & Raporlama", company: "Örnek A.Ş.", location: "İstanbul (Hibrit)" },
+      { source: "linkedin", sourceJobId: "2", url: "https://www.linkedin.com/jobs/view/2", title: null, company: null, location: null },
     ],
     notification: { channel: "none", status: "not_configured", messages: 0 },
     ...overrides,
@@ -59,6 +59,7 @@ test("yeni ilanlar HTML-kaçışlı bağlantı satırları olarak biçimlenir ve
   assert.ok(message);
   assert.match(message, /^🆕 2 yeni iş ilanı\n/);
   assert.match(message, /<a href="https:\/\/www\.linkedin\.com\/jobs\/view\/1">Veri Analisti &lt;Junior&gt; &amp; Raporlama<\/a>/);
+  assert.match(message, /Raporlama<\/a> — Örnek A\.Ş\. · İstanbul \(Hibrit\)/);
   assert.match(message, /Başlık yok/);
   assert.match(message, /Liste: https:\/\/job-discovery-tr\.vercel\.app$/);
 });
@@ -69,6 +70,8 @@ test("çok sayıda ilan birden fazla mesaja bölünür ve Telegram sınırını 
     sourceJobId: String(1000 + index),
     url: `https://www.kariyer.net/is-ilani/${1000 + index}`,
     title: `İlan ${index} ${"x".repeat(150)}`,
+    company: null,
+    location: null,
   }));
   const messages = formatRunMessages(baseReport({ newPostings }));
   assert.equal(messages.length, 3);

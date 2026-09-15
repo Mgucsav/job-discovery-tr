@@ -2,7 +2,9 @@ import type { JobPosting, JobSource, NormalizedEmail } from "../domain.ts";
 
 interface CandidateLink {
   url: string;
-  label: string | null;
+  // Bağlantı metni blok sınırlarına (td/tr/p/div/li/br) göre satırlara bölünmüş hali:
+  // e-posta kartlarında 1. satır başlık, 2. satır "Şirket · Konum" olur.
+  lines: string[];
 }
 
 interface ValidatedLink {
@@ -17,11 +19,27 @@ const GENERIC_LABELS = new Set([
   "job details",
   "see job",
   "view job",
+  "view",
   "başvur",
   "hemen başvur",
   "ilanı gör",
+  "ilanı görüntüle",
   "iş ilanını görüntüle",
+  "görüntüle",
+  "görüntüleyin",
+  "detaylar",
+  "detayları gör",
+  "incele",
 ]);
+
+const BLOCK_BOUNDARY = /<\/(?:td|tr|p|div|li|h[1-6]|table)\s*>|<br\s*\/?>/gi;
+
+function labelLines(innerHtml: string): string[] {
+  return innerHtml
+    .split(BLOCK_BOUNDARY)
+    .map(cleanText)
+    .filter((line) => line.length > 0);
+}
 
 function decodeHtmlEntities(value: string): string {
   return value
@@ -42,13 +60,13 @@ function extractLinks(email: NormalizedEmail): CandidateLink[] {
   let anchor: RegExpExecArray | null;
   while ((anchor = anchorPattern.exec(email.html)) !== null) {
     const href = anchor[1];
-    if (href) links.push({ url: decodeHtmlEntities(href.trim()), label: cleanText(anchor[2] ?? "") || null });
+    if (href) links.push({ url: decodeHtmlEntities(href.trim()), lines: labelLines(anchor[2] ?? "") });
   }
 
   const plainPattern = /https:\/\/[^\s<>"']+/gi;
   for (const body of [email.text, email.html.replace(anchorPattern, "")]) {
     for (const match of body.matchAll(plainPattern)) {
-      links.push({ url: decodeHtmlEntities(match[0].replace(/[),.;!?]+$/, "")), label: null });
+      links.push({ url: decodeHtmlEntities(match[0].replace(/[),.;!?]+$/, "")), lines: [] });
     }
   }
   return links;
@@ -121,11 +139,38 @@ export function validateJobUrl(rawUrl: string): ValidatedLink | null {
   return null;
 }
 
+function isGenericLabel(value: string): boolean {
+  return GENERIC_LABELS.has(value.toLocaleLowerCase("tr-TR"));
+}
+
 function titleFromLabel(label: string | null): string | null {
   if (!label) return null;
   const title = cleanText(label);
-  if (title.length < 2 || title.length > 240 || GENERIC_LABELS.has(title.toLocaleLowerCase("tr-TR"))) return null;
+  if (title.length < 2 || title.length > 240 || isGenericLabel(title)) return null;
   return title;
+}
+
+interface LabelFields {
+  title: string | null;
+  company: string | null;
+  location: string | null;
+}
+
+// 1. satır başlık; 2. satır "Şirket · Konum" ise ayrıştırılır. Belirsiz olan uydurulmaz, null kalır.
+function fieldsFromLines(lines: string[]): LabelFields {
+  const meaningful = lines.filter((line) => !isGenericLabel(line));
+  const title = titleFromLabel(meaningful[0] ?? null);
+  const meta = meaningful[1] ?? null;
+  if (!title || !meta || meta.length > 240) return { title, company: null, location: null };
+  const separator = meta.indexOf(" · ");
+  if (separator <= 0) return { title, company: null, location: null };
+  const company = meta.slice(0, separator).trim();
+  const location = meta.slice(separator + 3).trim();
+  return {
+    title,
+    company: company.length >= 2 && company.length <= 200 ? company : null,
+    location: location.length >= 2 && location.length <= 200 ? location : null,
+  };
 }
 
 export interface ParsedEmail {
@@ -146,15 +191,17 @@ export function parseJobAlertEmail(email: NormalizedEmail): ParsedEmail {
     if (!valid) continue;
     detectedSources.add(valid.source);
     const key = `${valid.source}:${valid.sourceJobId}`;
-    const title = titleFromLabel(candidate.label);
+    const fields = fieldsFromLines(candidate.lines);
     const existing = jobs.get(key);
     if (existing && existing.title !== null) continue;
     jobs.set(key, {
       source: valid.source,
       sourceJobId: valid.sourceJobId,
       url: valid.canonicalUrl,
-      title,
-      titleStatus: title === null ? "missing" : "present",
+      title: fields.title,
+      titleStatus: fields.title === null ? "missing" : "present",
+      company: fields.company,
+      location: fields.location,
       descriptionStatus: "missing",
       firstSeenAt: email.receivedAt,
       sourceEmailId: email.id,

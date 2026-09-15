@@ -89,6 +89,8 @@ interface JobPosting {
   url: string;                  // kanonik ve doğrulanmış HTTPS adresi
   title: string | null;
   titleStatus: "present" | "missing";
+  company: string | null;       // e-posta kartındaki "Şirket · Konum" satırından
+  location: string | null;
   descriptionStatus: "missing";
   firstSeenAt: string;          // ISO-8601
   sourceEmailId: string;

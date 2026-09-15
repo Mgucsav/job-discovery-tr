@@ -52,7 +52,14 @@ export async function runDiscovery(
           const outcome = await repository.upsert(job);
           if (outcome === "inserted") {
             sourceReport.newJobs += 1;
-            report.newPostings.push({ source: job.source, sourceJobId: job.sourceJobId, url: job.url, title: job.title });
+            report.newPostings.push({
+              source: job.source,
+              sourceJobId: job.sourceJobId,
+              url: job.url,
+              title: job.title,
+              company: job.company,
+              location: job.location,
+            });
           } else {
             sourceReport.duplicateJobs += 1;
           }

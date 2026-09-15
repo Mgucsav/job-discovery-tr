@@ -43,7 +43,7 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
   - Indeed: `https://tr.indeed.com/viewjob?jk=<key>`, `/jobs?…&vjk=<key>`, and the `/rc/clk?jk=<key>` / `/pagead/clk?jk=<key>` click links (the key is read from the URL; no redirect is ever followed)
 - Rejects shortened/opaque links (`lnkd.in`, `engage.indeed.com`, unknown redirectors), plain `http://`, and URLs carrying user info. Tracking parameters are dropped and the URL is canonicalised.
 - Deduplicates by `source + sourceJobId`. Similar postings on different sites are **not** merged.
-- Takes the title only when a trustworthy link label exists; otherwise it is stored as `null` (never invented). Description is always "missing" at this stage.
+- Reads the e-mail job card structurally: the link text is split at cell boundaries, the first line becomes the title, a second line of the form "Company · Location" fills company and location. Generic button labels ("Görüntüleyin", "Apply") are never used as titles; anything unknown stays `null`. Description is always "missing" at this stage.
 - Writes the postings to the configured store:
   - `JOB_STORE=firestore` (production): the same Firestore account the web app reads, tagged `acquisitionMethod: "gmail"` with the Gmail message id.
   - `JOB_STORE=json` (default / local pilot): `data/jobs.json`.
@@ -143,6 +143,8 @@ interface JobPosting {
   url: string;                    // canonical, validated HTTPS URL
   title: string | null;
   titleStatus: "present" | "missing";
+  company: string | null;         // from the e-mail card when present ("Company · Location")
+  location: string | null;
   descriptionStatus: "missing";
   firstSeenAt: string;            // ISO-8601
   sourceEmailId: string;          // Gmail message id that first surfaced the posting

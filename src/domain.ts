@@ -8,6 +8,8 @@ export interface JobPosting {
   url: string;
   title: string | null;
   titleStatus: "present" | "missing";
+  company: string | null;
+  location: string | null;
   descriptionStatus: "missing";
   firstSeenAt: string;
   sourceEmailId: string;
@@ -74,6 +76,8 @@ export interface NewPostingSummary {
   sourceJobId: string;
   url: string;
   title: string | null;
+  company: string | null;
+  location: string | null;
 }
 
 export type NotificationStatus = "not_configured" | "skipped" | "sent" | "error";

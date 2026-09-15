@@ -12,6 +12,8 @@ const base: JobPosting = {
   url: "https://www.linkedin.com/jobs/view/4290012345",
   title: null,
   titleStatus: "missing",
+  company: null,
+  location: null,
   descriptionStatus: "missing",
   firstSeenAt: "2026-09-11T08:00:00.000Z",
   sourceEmailId: "mail-late",
@@ -35,8 +37,13 @@ test("JSON deposu kaynak+ilan ID ile tekilleştirir ve ilk görülmeyi korur", a
       "updated",
     );
 
+    assert.equal(await repository.upsert({ ...base, company: "Örnek A.Ş.", location: "İzmir" }), "updated");
+    assert.equal(await repository.upsert({ ...base, company: "Başka Şirket" }), "unchanged");
+
     const [saved] = await repository.list();
     assert.equal(saved?.title, "Platform Mühendisi");
+    assert.equal(saved?.company, "Örnek A.Ş.");
+    assert.equal(saved?.location, "İzmir");
     assert.equal(saved?.firstSeenAt, "2026-09-10T08:00:00.000Z");
     assert.equal(saved?.sourceEmailId, "mail-early");
     const onDisk = JSON.parse(await readFile(storePath, "utf8")) as { postings: JobPosting[] };
