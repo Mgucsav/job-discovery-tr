@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { NormalizedEmail } from "./domain.js";
-import { runDiscovery } from "./discovery/service.js";
-import { printReport } from "./report.js";
-import { MemoryJobRepository } from "./storage/memory-repository.js";
+import type { NormalizedEmail } from "./domain.ts";
+import { runDiscovery } from "./discovery/service.ts";
+import { printReport } from "./report.ts";
+import { MemoryJobRepository } from "./storage/memory-repository.ts";
 
 async function main(): Promise<void> {
   const fixturePath = path.resolve("tests/fixtures/job-alert-emails.json");

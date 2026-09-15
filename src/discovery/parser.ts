@@ -1,4 +1,4 @@
-import type { JobPosting, JobSource, NormalizedEmail } from "../domain.js";
+import type { JobPosting, JobSource, NormalizedEmail } from "../domain.ts";
 
 interface CandidateLink {
   url: string;

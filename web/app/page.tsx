@@ -1,18 +1,26 @@
 import { redirect } from "next/navigation";
 import { AddLinkForm } from "@/components/add-link-form";
+import { DiscoveryStatus } from "@/components/discovery-status";
 import { JobList } from "@/components/job-list";
 import { SignOutButton } from "@/components/sign-out-button";
 import { SourceFilter } from "@/components/source-filter";
 import { getVerifiedUser } from "@/lib/auth/next";
-import { getAdminFirestore } from "@/lib/firebase/admin";
+import type { StoredDiscoveryRun, StoredJobPosting } from "@/lib/core";
 import { applyJobListQuery, parseJobListQuery } from "@/lib/jobs/query";
-import { listJobPostings } from "@/lib/jobs/repository";
-import { SOURCE_LABELS, type StoredJobPosting } from "@/lib/jobs/types";
+import { getLatestDiscoveryRun, listJobPostings } from "@/lib/jobs/repository";
+import { ACQUISITION_LABELS, SOURCE_LABELS } from "@/lib/jobs/types";
 
 // Kişisel sayfa: her istekte sunucuda doğrulanır, statik çıktı üretilmez.
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function emptyFilterMessage(query: ReturnType<typeof parseJobListQuery>): string {
+  const parts: string[] = [];
+  if (query.source) parts.push(SOURCE_LABELS[query.source]);
+  if (query.method) parts.push(ACQUISITION_LABELS[query.method].toLocaleLowerCase("tr-TR"));
+  return parts.length > 0 ? `${parts.join(" · ")} için kayıtlı ilan yok.` : "Kayıtlı ilan yok.";
+}
 
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   const user = await getVerifiedUser();
@@ -21,9 +29,10 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const query = parseJobListQuery(await searchParams);
 
   let allJobs: StoredJobPosting[] = [];
+  let lastRun: StoredDiscoveryRun | null = null;
   let loadError = false;
   try {
-    allJobs = await listJobPostings(getAdminFirestore(), user.id);
+    [allJobs, lastRun] = await Promise.all([listJobPostings(user.id), getLatestDiscoveryRun(user.id)]);
   } catch {
     loadError = true;
   }
@@ -44,6 +53,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
 
       <section className="card">
         <h2>İlanlar {total > 0 ? `(${jobs.length} / ${total})` : ""}</h2>
+        {loadError ? null : <DiscoveryStatus run={lastRun} />}
         <SourceFilter query={query} />
         {loadError ? (
           <p className="message error" role="alert">
@@ -51,15 +61,16 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           </p>
         ) : total === 0 ? (
           <div className="empty">
-            <strong>Henüz ilan yok; Gmail keşfi bağlı değil.</strong>
+            <strong>{lastRun ? "Henüz ilan yok." : "Henüz ilan yok; Gmail keşfi bağlı değil."}</strong>
             <span className="muted">
-              Bu aşamada ilanlar yalnızca yukarıdaki formla elle eklenir. Gmail iş alarmı keşfi (CLI) henüz bu veri
-              tabanına yazmıyor.
+              {lastRun
+                ? "Son Gmail keşfi ilan bulmadı. İş alarmı e-postalarının etikete düştüğünden emin olun veya yukarıdaki formla elle ekleyin."
+                : "Bu aşamada ilanlar yalnızca yukarıdaki formla elle eklenir. Gmail iş alarmı keşfi (CLI) henüz bu hesaba yazmadı."}
             </span>
           </div>
         ) : jobs.length === 0 ? (
           <div className="empty">
-            <strong>{query.source ? `${SOURCE_LABELS[query.source]} kaynağında kayıtlı ilan yok.` : "Kayıtlı ilan yok."}</strong>
+            <strong>{emptyFilterMessage(query)}</strong>
           </div>
         ) : (
           <JobList jobs={jobs} />

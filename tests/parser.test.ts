@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import type { NormalizedEmail } from "../src/domain.js";
-import { parseJobAlertEmail, validateJobUrl } from "../src/discovery/parser.js";
+import type { NormalizedEmail } from "../src/domain.ts";
+import { parseJobAlertEmail, validateJobUrl } from "../src/discovery/parser.ts";
 
 test("yalnızca izin verilen doğrudan HTTPS ilan URL'lerini kabul eder", () => {
   assert.deepEqual(validateJobUrl("https://www.linkedin.com/jobs/view/example-role-4290012345?trk=mail"), {

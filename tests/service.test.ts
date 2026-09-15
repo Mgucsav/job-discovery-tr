@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import type { NormalizedEmail } from "../src/domain.js";
-import { DiscoveryRunError, runDiscovery } from "../src/discovery/service.js";
-import { MemoryJobRepository } from "../src/storage/memory-repository.js";
+import type { NormalizedEmail } from "../src/domain.ts";
+import { DiscoveryRunError, runDiscovery } from "../src/discovery/service.ts";
+import { MemoryJobRepository } from "../src/storage/memory-repository.ts";
 
 async function fixtures(): Promise<NormalizedEmail[]> {
   const raw = await readFile(new URL("./fixtures/job-alert-emails.json", import.meta.url), "utf8");

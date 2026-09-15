@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
-import { createAuthorizationUrl, exchangeAuthorizationCode, GMAIL_READONLY_SCOPE } from "./oauth.js";
+import { createAuthorizationUrl, exchangeAuthorizationCode, GMAIL_READONLY_SCOPE } from "./oauth.ts";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();

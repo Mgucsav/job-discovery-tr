@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { JobPosting } from "../domain.js";
-import type { JobRepository, UpsertOutcome } from "./repository.js";
+import type { JobPosting } from "../domain.ts";
+import type { JobRepository, UpsertOutcome } from "./repository.ts";
 
 interface StoreDocument {
   schemaVersion: 1;

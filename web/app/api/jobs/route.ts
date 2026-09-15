@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { isNextResponse, jsonError, optionalStringField, readJsonObject, requireUser } from "@/lib/api";
-import { getAdminFirestore } from "@/lib/firebase/admin";
 import { prepareManualLink } from "@/lib/jobs/manual-link";
 import { OUTCOME_MESSAGES } from "@/lib/jobs/messages";
 import { deleteJobPosting, listJobPostings, upsertJobPosting } from "@/lib/jobs/repository";
@@ -11,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<NextResponse> {
   const user = await requireUser();
   if (isNextResponse(user)) return user;
-  const jobs = await listJobPostings(getAdminFirestore(), user.id);
+  const jobs = await listJobPostings(user.id);
   return NextResponse.json({ jobs });
 }
 
@@ -30,7 +29,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   });
   if (!prepared.ok) return jsonError(422, prepared.error);
 
-  const outcome = await upsertJobPosting(getAdminFirestore(), user.id, prepared.input);
+  const outcome = await upsertJobPosting(user.id, prepared.input);
   return NextResponse.json({ outcome, message: OUTCOME_MESSAGES[outcome] }, { status: outcome === "inserted" ? 201 : 200 });
 }
 
@@ -41,7 +40,7 @@ export async function DELETE(request: Request): Promise<NextResponse> {
   if (isNextResponse(body)) return body;
 
   const id = optionalStringField(body, "id").trim();
-  const deleted = await deleteJobPosting(getAdminFirestore(), user.id, id);
+  const deleted = await deleteJobPosting(user.id, id);
   if (!deleted) return jsonError(400, "Geçersiz ilan kimliği.");
   return NextResponse.json({ ok: true });
 }

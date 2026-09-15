@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { endSession, getVerifiedUser } from "@/lib/auth/next";
-import { getAdminFirestore } from "@/lib/firebase/admin";
 import { prepareManualLink } from "@/lib/jobs/manual-link";
 import { OUTCOME_MESSAGES } from "@/lib/jobs/messages";
 import { deleteJobPosting as deleteStoredJobPosting, upsertJobPosting } from "@/lib/jobs/repository";
@@ -29,7 +28,7 @@ export async function addJobLink(_previous: AddLinkState, formData: FormData): P
   if (!prepared.ok) return { status: "error", message: prepared.error };
 
   try {
-    const outcome = await upsertJobPosting(getAdminFirestore(), user.id, prepared.input);
+    const outcome = await upsertJobPosting(user.id, prepared.input);
     revalidatePath("/");
     return { status: outcome, message: OUTCOME_MESSAGES[outcome] };
   } catch {
@@ -42,7 +41,7 @@ export async function deleteJobPosting(formData: FormData): Promise<void> {
   if (!user) redirect("/login");
 
   const id = String(formData.get("id") ?? "").trim();
-  await deleteStoredJobPosting(getAdminFirestore(), user.id, id);
+  await deleteStoredJobPosting(user.id, id);
   revalidatePath("/");
 }
 

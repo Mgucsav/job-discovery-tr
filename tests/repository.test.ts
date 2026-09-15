@@ -3,8 +3,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import type { JobPosting } from "../src/domain.js";
-import { JsonFileJobRepository } from "../src/storage/json-file-repository.js";
+import type { JobPosting } from "../src/domain.ts";
+import { JsonFileJobRepository } from "../src/storage/json-file-repository.ts";
 
 const base: JobPosting = {
   source: "linkedin",

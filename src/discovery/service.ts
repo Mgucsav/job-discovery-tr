@@ -1,6 +1,6 @@
-import { JOB_SOURCES, type DiscoveryRunReport, type NormalizedEmail } from "../domain.js";
-import type { JobRepository } from "../storage/repository.js";
-import { parseJobAlertEmail } from "./parser.js";
+import { JOB_SOURCES, type DiscoveryRunReport, type NormalizedEmail } from "../domain.ts";
+import type { JobRepository } from "../storage/repository.ts";
+import { parseJobAlertEmail } from "./parser.ts";
 
 export interface EmailSource {
   listJobAlertEmails(): Promise<NormalizedEmail[]>;

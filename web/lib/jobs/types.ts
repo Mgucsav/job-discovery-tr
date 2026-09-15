@@ -1,33 +1,8 @@
-import type { JobPosting, JobSource } from "@/lib/core";
+import type { AcquisitionMethod, JobSource } from "@/lib/core";
 
-export type AcquisitionMethod = "manual" | "gmail";
-export type UpsertOutcome = "inserted" | "updated" | "unchanged";
-
-// Depoya yazılacak ilan: JobPosting sözleşmesi + edinilme yöntemi + isteğe bağlı alanlar.
-// Manuel kayıtta sourceEmailId null'dır; uydurulmaz. Gmail kaydında zorunludur.
-export interface JobPostingInput {
-  source: JobSource;
-  sourceJobId: string;
-  url: string;
-  title: string | null;
-  company: string | null;
-  location: string | null;
-  description: string | null;
-  firstSeenAt: string;
-  acquisitionMethod: AcquisitionMethod;
-  sourceEmailId: string | null;
-}
-
-// Web görünüm modeli: JobPosting sözleşmesinin sahip/edinilme bilgisiyle genişletilmiş hali.
-export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "descriptionStatus"> {
-  id: string;
-  company: string | null;
-  location: string | null;
-  description: string | null;
-  descriptionStatus: "missing" | "present";
-  acquisitionMethod: AcquisitionMethod;
-  sourceEmailId: string | null;
-}
+// Depo tipleri (StoredJobPosting, StoredJobPostingInput, UpsertOutcome) depo kökündeki src/domain.ts'te
+// tanımlıdır ve @/lib/core üzerinden içe aktarılır; burada yalnızca arayüz etiketleri bulunur.
+export type { AcquisitionMethod, StoredJobPosting, StoredJobPostingInput, UpsertOutcome } from "@/lib/core";
 
 export const SOURCE_LABELS: Record<JobSource, string> = {
   linkedin: "LinkedIn",

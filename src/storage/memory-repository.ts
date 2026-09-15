@@ -1,5 +1,5 @@
-import type { JobPosting } from "../domain.js";
-import type { JobRepository, UpsertOutcome } from "./repository.js";
+import type { JobPosting } from "../domain.ts";
+import type { JobRepository, UpsertOutcome } from "./repository.ts";
 
 export class MemoryJobRepository implements JobRepository {
   private readonly postings = new Map<string, JobPosting>();

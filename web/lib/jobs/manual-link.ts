@@ -1,5 +1,5 @@
 import { validateJobUrl } from "@/lib/core";
-import type { JobPostingInput } from "./types";
+import type { StoredJobPostingInput } from "./types";
 
 export interface ManualLinkInput {
   url: string;
@@ -9,7 +9,7 @@ export interface ManualLinkInput {
   description?: string | null | undefined;
 }
 
-export type ManualLinkResult = { ok: true; input: JobPostingInput } | { ok: false; error: string };
+export type ManualLinkResult = { ok: true; input: StoredJobPostingInput } | { ok: false; error: string };
 
 export const MANUAL_LINK_URL_ERROR =
   "Yalnızca doğrudan HTTPS ilan bağlantıları kabul edilir: LinkedIn (/jobs/view/ID), Kariyer.net (/is-ilani/...-ID) veya Indeed (/viewjob?jk=...). Kısaltılmış veya yönlendirme bağlantıları reddedilir.";

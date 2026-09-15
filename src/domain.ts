@@ -13,6 +13,44 @@ export interface JobPosting {
   sourceEmailId: string;
 }
 
+// İlanın ilk görülmesini sağlayan yöntem: web arayüzünden elle veya Gmail keşif koşusu.
+export const ACQUISITION_METHODS = ["manual", "gmail"] as const;
+
+export type AcquisitionMethod = (typeof ACQUISITION_METHODS)[number];
+
+// Kalıcı depoya (Firestore) yazılacak ilan: JobPosting sözleşmesi + edinilme yöntemi + isteğe bağlı alanlar.
+// Manuel kayıtta sourceEmailId null'dır; Gmail kaydında zorunludur. Eksik alanlar null kalır, uydurulmaz.
+export interface StoredJobPostingInput {
+  source: JobSource;
+  sourceJobId: string;
+  url: string;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  description: string | null;
+  firstSeenAt: string;
+  acquisitionMethod: AcquisitionMethod;
+  sourceEmailId: string | null;
+}
+
+// Kalıcı depodan okunan ilan (web görünüm modeli ve CLI listeleme için ortak).
+export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "descriptionStatus"> {
+  id: string;
+  company: string | null;
+  location: string | null;
+  description: string | null;
+  descriptionStatus: "present" | "missing";
+  acquisitionMethod: AcquisitionMethod;
+  sourceEmailId: string | null;
+}
+
+// Gmail keşif koşusunun kalıcı özeti (web'de "son keşif" satırı için).
+export interface StoredDiscoveryRun extends DiscoveryRunReport {
+  id: string;
+  newJobsTotal: number;
+  duplicateJobsTotal: number;
+}
+
 export interface NormalizedEmail {
   id: string;
   receivedAt: string;

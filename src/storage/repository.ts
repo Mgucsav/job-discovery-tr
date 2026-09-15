@@ -1,4 +1,4 @@
-import type { JobPosting } from "../domain.js";
+import type { JobPosting } from "../domain.ts";
 
 export type UpsertOutcome = "inserted" | "updated" | "unchanged";
 

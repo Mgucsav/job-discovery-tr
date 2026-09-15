@@ -282,3 +282,24 @@ button[disabled] {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+.status {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+}
+
+.status code {
+  font-size: 0.85em;
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+.muted-small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}

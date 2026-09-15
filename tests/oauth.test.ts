@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createAuthorizationUrl, GMAIL_READONLY_SCOPE } from "../src/gmail/oauth.js";
+import { createAuthorizationUrl, GMAIL_READONLY_SCOPE } from "../src/gmail/oauth.ts";
 
 test("OAuth URL'si yalnızca Gmail salt-okunur kapsamını ister", () => {
   const url = new URL(

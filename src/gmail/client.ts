@@ -1,5 +1,5 @@
-import type { NormalizedEmail } from "../domain.js";
-import { refreshAccessToken } from "./oauth.js";
+import type { NormalizedEmail } from "../domain.ts";
+import { refreshAccessToken } from "./oauth.ts";
 
 interface GmailHeader {
   name: string;

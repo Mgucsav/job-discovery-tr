@@ -1,4 +1,22 @@
-// Depo kökündeki keşif çekirdeği tek noktadan içe aktarılır; sözleşme ve URL doğrulama
-// kuralları çoğaltılmaz. (Turbopack kökü next.config.ts içinde depo köküne ayarlıdır.)
-export { JOB_SOURCES, type JobPosting, type JobSource } from "../../src/domain";
+// Depo kökündeki keşif çekirdeği tek noktadan içe aktarılır; sözleşme, URL doğrulama kuralları ve
+// Firestore belge mantığı çoğaltılmaz. (Turbopack kökü next.config.ts içinde depo köküne ayarlıdır.)
+export {
+  ACQUISITION_METHODS,
+  JOB_SOURCES,
+  type AcquisitionMethod,
+  type DiscoveryRunReport,
+  type JobPosting,
+  type JobSource,
+  type StoredDiscoveryRun,
+  type StoredJobPosting,
+  type StoredJobPostingInput,
+} from "../../src/domain";
 export { validateJobUrl } from "../../src/discovery/parser";
+export type { UpsertOutcome } from "../../src/storage/repository";
+export {
+  deleteStoredJobPosting,
+  latestDiscoveryRun,
+  listStoredJobPostings,
+  upsertStoredJobPosting,
+  type JobPostingStore,
+} from "../../src/storage/job-posting-store";

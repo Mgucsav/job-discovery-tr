@@ -103,11 +103,11 @@ interface JobPosting {
 - Fixture'lar hayalî kimlikler/şirket metinleri içerir; gerçek kişi, adres veya gerçek e-posta gövdesi içermez.
 - Hata mesajları token'ı loglamaz. Google'ın hata yanıtının yalnızca sınırlı bir bölümü teşhis amacıyla gösterilir.
 
-Yerel JSON deposu tek süreçli geliştirme/pilot kullanım içindir. **Vercel'in geçici dosya sistemi kalıcı veri tabanı değildir ve bu depo Vercel üretim kalıcılığı olarak tasarlanmamıştır.** `JobRepository` arayüzü, sonraki dağıtımda Postgres gibi kalıcı bir harici veri tabanı adaptörüyle değiştirilmelidir. Zamanlanmış görev de aynı keşif servisini çağırabilir; bu aşamada canlı zamanlama yoktur. Kalıcı depolama ve Vercel dağıtımı, aşağıdaki Aşama 2 web arayüzünde Firebase (Firestore) ile sağlanır; CLI keşfi henüz o veri tabanına bağlı değildir.
+Yerel JSON deposu tek süreçli geliştirme/pilot kullanım içindir. **Vercel'in geçici dosya sistemi kalıcı veri tabanı değildir ve bu depo Vercel üretim kalıcılığı olarak tasarlanmamıştır.** `JobRepository` arayüzü, sonraki dağıtımda Postgres gibi kalıcı bir harici veri tabanı adaptörüyle değiştirilmelidir. Zamanlanmış görev de aynı keşif servisini çağırabilir; bu aşamada canlı zamanlama yoktur. Kalıcı depolama ve Vercel dağıtımı, aşağıdaki Aşama 2 web arayüzünde Firebase (Firestore) ile sağlanır; Aşama 3 ile CLI keşfi de aynı depoya yazar.
 
 ## Aşama 2: Web arayüzü (web/) ve Firebase kalıcılığı
 
-`web/` klasörü, ilanları Cloud Firestore'da kalıcı tutan ve yalnızca tek bir Firebase Authentication hesabının kullandığı Next.js + TypeScript uygulamasıdır. Vercel'de **Root Directory = `web/`** olarak dağıtılır. Mevcut CLI komutları (`discover`, `discover:fixtures`, `oauth:setup`) değişmedi ve bu aşamada Firestore'a yazmıyor.
+`web/` klasörü, ilanları Cloud Firestore'da kalıcı tutan ve yalnızca tek bir Firebase Authentication hesabının kullandığı Next.js + TypeScript uygulamasıdır. Vercel'de **Root Directory = `web/`** olarak dağıtılır. Mevcut CLI komutları (`discover`, `discover:fixtures`, `oauth:setup`) korunur; `discover` Aşama 3 ile `JOB_STORE=firestore` seçildiğinde aynı Firestore hesabına yazar.
 
 Yapabildikleri:
 
@@ -116,7 +116,7 @@ Yapabildikleri:
 - "Bağlantı ekle": yalnızca `validateJobUrl` kurallarından geçen doğrudan HTTPS ilan bağlantıları kabul edilir; URL kanonik hale getirilir. Başlık/şirket/konum/açıklama isteğe bağlıdır, boş alanlar `null` kalır. Manuel kayda Gmail e-posta kimliği yazılmaz.
 - Boş veri tabanında açıkça "Henüz ilan yok; Gmail keşfi bağlı değil" gösterilir; örnek veri yoktur.
 
-Bilinçli olarak yapmadıkları: otomatik başvuru, form doldurma, AI puanlama, canlı Gmail zamanlayıcısı, Gmail keşif sonuçlarını Firestore'a yazma (CLI hâlâ yerel JSON depoya yazar).
+Bilinçli olarak yapmadıkları: otomatik başvuru, form doldurma, AI puanlama, canlı (bulut) Gmail zamanlayıcısı. Gmail keşfi Aşama 3 ile aynı Firestore hesabına yazar (aşağıda).
 
 ### Veri modeli ve güvenlik
 
@@ -157,6 +157,29 @@ Bu komut oturumsuz isteklerin `/login`'e yönlendirildiğini ve API'nin 401 verd
 ### Vercel
 
 Proje GitHub deposundan içe aktarılır; **Root Directory: `web`**. Ortam değişkenleri: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_WEB_API_KEY`. `web/` uygulaması depo kökündeki `src/domain.ts` ve `src/discovery/parser.ts` dosyalarını doğrudan içe aktardığı için "Include source files outside of the Root Directory" ayarı açık olmalıdır (varsayılan açıktır).
+
+## Aşama 3: Gmail keşfi → Firestore (web ile ortak depo)
+
+`npm run discover` artık `JOB_STORE=firestore` ile bulduğu ilanları doğrudan web arayüzünün okuduğu Firestore hesabının altına yazar; yerel JSON deposu (`JOB_STORE=json`, varsayılan) korunur.
+
+- Ortak belge mantığı depo kökünde: `src/storage/job-posting-documents.ts` (belge kimliği, birleştirme kuralı, ayrıştırma) ve `src/storage/job-posting-store.ts` (`FirestoreJobRepository`, `upsert/list/delete`, koşu özeti). Web (`web/lib/core.ts`) aynı modülleri içe aktarır; birleştirme kuralı tek yerde yaşar.
+- Yerleşim: `users/{uid}/jobPostings/{source__sourceJobId}` ve `users/{uid}/discoveryRuns/{startedAt}`. Zaman alanları ISO-8601 metindir.
+- Gmail kayıtları `acquisitionMethod: gmail` + `sourceEmailId` ile yazılır; elle eklenen bir ilan daha eski bir e-postada görülürse ilk görülme bilgisi ve edinilme kaynağı geriye çekilir, elle girilen alanlar korunur.
+- Her koşu sonunda rapor Firestore'a kaydedilir; web'de "Son Gmail keşfi: …" satırı görünür. Koşu hiç yoksa arayüz bunu açıkça söyler.
+- Sahip hesap `JOB_OWNER_EMAIL` ile belirlenir; uid Firebase Auth'tan çözülür. CLI, web ile aynı servis hesabı değişkenlerini (`FIREBASE_*`) kullanır.
+- Kök modüller `.ts` uzantılı göreli içe aktarım kullanır (`rewriteRelativeImportExtensions`); `dist/` çıktısı yine `.js`'e yazılır ve Turbopack aynı dosyaları doğrudan çözer.
+
+Çalıştırma (Gmail OAuth kurulumu tamamlandıktan sonra):
+
+```powershell
+npm run discover          # .env.local: JOB_STORE=firestore, JOB_OWNER_EMAIL=<web hesabı>
+```
+
+Günlük otomatik çalışma için Windows Görev Zamanlayıcı (bilgisayar açıkken her gün 09:00):
+
+```powershell
+schtasks /Create /SC DAILY /ST 09:00 /TN "JobDiscovery" /TR "cmd /c cd /d \"C:\Users\editör_01\Desktop\Personel Job Discover System\" && npm run discover >> data\discover.log 2>&1"
+```
 
 ## Bu aşamanın sınırları
 
