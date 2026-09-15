@@ -124,6 +124,19 @@ export class TelegramNotifier {
   }
 }
 
+export interface BotIdentity {
+  username: string;
+  firstName: string;
+}
+
+// Botun kullanıcı adını döner (telegram:setup bağlantıyı göstermek için kullanır).
+export async function getBotIdentity(botToken: string, fetchImpl: FetchLike = fetch): Promise<BotIdentity> {
+  const payload = await callTelegram({ botToken, chatId: "" }, "getMe", {}, fetchImpl);
+  const result = (payload.result ?? {}) as Record<string, unknown>;
+  if (typeof result.username !== "string") throw new Error("Telegram bot bilgisi alınamadı.");
+  return { username: result.username, firstName: typeof result.first_name === "string" ? result.first_name : result.username };
+}
+
 // Kullanıcının bota yazdığı ilk özel sohbetin kimliğini bulur (telegram:setup için).
 export async function discoverPrivateChatId(botToken: string, fetchImpl: FetchLike = fetch): Promise<string | null> {
   const payload = await callTelegram({ botToken, chatId: "" }, "getUpdates", { limit: 100 }, fetchImpl);
