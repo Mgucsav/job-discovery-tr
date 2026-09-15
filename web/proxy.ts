@@ -21,5 +21,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // API route'ları kendi 401 yanıtını verir; statik dosyalar ve görseller kapsam dışıdır.
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
