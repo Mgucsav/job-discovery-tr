@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
   },
   // firebase-admin yalnızca Node.js sunucu tarafında çalışır; paketlenmez, dış bağımlılık olarak yüklenir.
   serverExternalPackages: ["firebase-admin"],
+  // CV yükleme (en fazla 4 MB dosya) sunucu eylemiyle yapılır; varsayılan 1 MB gövde sınırı yükseltilir.
+  experimental: {
+    serverActions: { bodySizeLimit: "5mb" },
+  },
 };
 
 export default nextConfig;

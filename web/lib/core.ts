@@ -20,3 +20,17 @@ export {
   upsertStoredJobPosting,
   type JobPostingStore,
 } from "../../src/storage/job-posting-store";
+export {
+  CV_MAX_BYTES,
+  CV_MAX_COUNT,
+  deleteCv,
+  getCv,
+  isCvId,
+  listCvs,
+  readCvBytes,
+  setDefaultCv,
+  uploadCv,
+  validateCvUpload,
+  type CvKind,
+  type StoredCv,
+} from "../../src/storage/cv-store";

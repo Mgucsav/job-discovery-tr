@@ -54,7 +54,8 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
 - Job list with source filter (LinkedIn / Kariyer.net / Indeed), acquisition filter (manual / Gmail), first-seen sorting, "Open posting" and "Delete".
 - "Add link": paste a job URL; it passes through the same `validateJobUrl` rules as the discovery pipeline, is canonicalised and stored with `acquisitionMethod: "manual"`. Title / company / location / description are optional and stay `null` when empty.
 - Shows the last Gmail discovery run (time, e-mails read, new / duplicate / unresolved). With an empty database it says explicitly that there are no postings yet and whether discovery has ever run — no sample data is shown as if it were real.
-- A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`) with the same session checks, used by the end-to-end verification script.
+- **My CVs** (`/cvs`): upload up to 10 fixed CVs (PDF or DOCX, max 4 MB each), give each a label, mark one as default, download or delete. Files live only in your Firestore account and are streamed by the server after session verification; the upcoming application assistant will pick the CV from here.
+- A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`, `/api/cvs`, `/api/cvs/{id}`) with the same session checks, used by the end-to-end verification script.
 
 **Automation**
 
@@ -147,11 +148,15 @@ interface JobPosting {
 ```text
 users/{uid}/jobPostings/{source}__{sourceJobId}
 users/{uid}/discoveryRuns/{startedAt}
+users/{uid}/cvs/{cvId}                  # CV metadata
+users/{uid}/cvs/{cvId}/chunks/{index}   # file bytes in 700 KB chunks
 ```
 
 Posting document fields: `ownerId`, `source`, `sourceJobId`, `url`, `title`, `company`, `location`, `description` (each optional field is `null` when unknown), `firstSeenAt`, `acquisitionMethod` (`"manual"` | `"gmail"`), `sourceEmailId` (`null` for manual entries — a fake Gmail id is never written), `createdAt`, `updatedAt`. Time fields are ISO-8601 strings, so lexicographic order equals chronological order and no Firestore `Timestamp` objects cross module boundaries.
 
 The document id is the uniqueness key (owner + source + source job id).
+
+CV files are stored in Firestore instead of Cloud Storage because Cloud Storage for Firebase requires the Blaze (billing) plan on new projects. Each file is split into 700 KB chunks (Firestore's document limit is 1 MiB), written atomically with its metadata (name, file name, kind, size, SHA-256, chunk count, default flag) and verified against the hash when read back. Type detection uses the extension **and** magic bytes (`%PDF-` / ZIP header for `.docx`).
 
 ### Merge rule (identical for CLI and web)
 
@@ -313,7 +318,7 @@ Unregister-ScheduledTask -TaskName JobDiscovery     # remove
 
 **Unit tests**
 
-- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling).
+- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation.
 - Web: manual-link preparation, list query parsing/filtering, a guard that `firestore.rules` still denies everything.
 
 **End-to-end against the deployed app** (`web/scripts/verify-firebase.ts`):
@@ -323,7 +328,7 @@ cd web
 npm run verify:firebase -- --base-url https://<your-app>.vercel.app
 ```
 
-It asks for your e-mail and (hidden) password locally, then checks: unauthenticated `/` redirects to `/login` and `/api/jobs` returns 401; login yields an `HttpOnly` session cookie; a TEST posting is inserted, is visible when the page is fetched again, re-adding returns `unchanged`, deleting removes it; after logout the old cookie is rejected; direct Firestore REST calls (anonymous and with the user's own ID token) return 403. Only status codes and booleans are printed.
+It asks for your e-mail and (hidden) password locally, then checks: unauthenticated `/` redirects to `/login` and `/api/jobs` returns 401; login yields an `HttpOnly` session cookie; a TEST posting is inserted, is visible when the page is fetched again, re-adding returns `unchanged`, deleting removes it; a tiny TEST PDF is uploaded as a CV, listed, downloaded back with a matching SHA-256, refused to anonymous requests (401) and deleted; after logout the old cookie is rejected; direct Firestore REST calls (anonymous and with the user's own ID token) return 403. Only status codes and booleans are printed.
 
 ---
 
@@ -350,7 +355,7 @@ Deliberately **not** implemented in this version:
 Planned next (human-in-the-loop "assisted apply" track):
 
 1. Application tracking in the web app (status, notes, hide/archive)
-2. Private CV upload and per-posting match score with reasons
+2. Per-posting match score with reasons, computed from the stored CVs
 3. A saved answer bank for recurring application questions
 4. A local browser assistant that pre-fills applications and stops at the review step — you press *Submit*
 

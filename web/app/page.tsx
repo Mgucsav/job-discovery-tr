@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AddLinkForm } from "@/components/add-link-form";
 import { DiscoveryStatus } from "@/components/discovery-status";
@@ -46,7 +47,12 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <h1>İş İlanı Keşfi</h1>
           <div className="who">{user.email ?? "Oturum açık"}</div>
         </div>
-        <SignOutButton />
+        <div className="actions">
+          <Link href="/cvs" className="button">
+            CV&apos;lerim
+          </Link>
+          <SignOutButton />
+        </div>
       </div>
 
       <AddLinkForm />

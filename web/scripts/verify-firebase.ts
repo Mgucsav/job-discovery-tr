@@ -11,7 +11,9 @@
 //  4. Aynı bağlantıyı tekrar ekleme -> "unchanged" (ilk görülme korunur)
 //  5. TEST kaydını silme -> listede yok
 //  6. Çıkış -> eski çerezle "/" yine /login'e gider, "/api/jobs" 401
+//  5b. CV yükle -> listele -> indir (sha256) -> anonim indirme 401 -> sil
 //  7. Doğrudan Firestore REST isteği (anonim ve kullanıcının kendi ID token'ı ile) -> 403
+import { createHash } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { Writable } from "node:stream";
@@ -142,6 +144,32 @@ async function main(): Promise<void> {
   const pageAfterDelete = await (await fetch(`${base}/`, { headers: authed })).text();
   summary.deleted = !afterDelete.jobs?.some((job) => job.id === TEST_ID) && !pageAfterDelete.includes(TEST_MARKER);
 
+  // 5b) CV: küçük bir PDF yükle, listele, indir (sha256 karşılaştır), sil
+  const pdfBytes = Buffer.from("%PDF-1.4\n%TEST doğrulama CV (otomatik silinir)\n%%EOF\n", "utf8");
+  const pdfSha = createHash("sha256").update(pdfBytes).digest("hex");
+  const cvForm = new FormData();
+  cvForm.set("name", "TEST doğrulama CV");
+  cvForm.set("file", new Blob([pdfBytes], { type: "application/pdf" }), "test-dogrulama.pdf");
+  const cvUpload = await fetch(`${base}/api/cvs`, { method: "POST", headers: authed, body: cvForm });
+  const cvBody = (await cvUpload.json().catch(() => ({}))) as { cv?: { id?: string; sha256?: string; isDefault?: boolean } };
+  summary.cvUploadStatus = cvUpload.status;
+  summary.cvShaMatchesUpload = cvBody.cv?.sha256 === pdfSha;
+  if (cvBody.cv?.id) {
+    const cvList = (await (await fetch(`${base}/api/cvs`, { headers: authed })).json().catch(() => ({}))) as { cvs?: Array<{ id?: string }> };
+    summary.cvListedAfterUpload = Boolean(cvList.cvs?.some((cv) => cv.id === cvBody.cv?.id));
+    const download = await fetch(`${base}/api/cvs/${cvBody.cv.id}`, { headers: authed });
+    const downloaded = Buffer.from(await download.arrayBuffer());
+    summary.cvDownloadStatus = download.status;
+    summary.cvDownloadContentType = download.headers.get("content-type");
+    summary.cvDownloadShaMatches = createHash("sha256").update(downloaded).digest("hex") === pdfSha;
+    const anonDownload = await fetch(`${base}/api/cvs/${cvBody.cv.id}`);
+    summary.cvAnonymousDownloadStatus = anonDownload.status;
+    const cvDelete = await fetch(`${base}/api/cvs/${cvBody.cv.id}`, { method: "DELETE", headers: authed });
+    summary.cvDeleteStatus = cvDelete.status;
+    const afterCvDelete = (await (await fetch(`${base}/api/cvs`, { headers: authed })).json().catch(() => ({}))) as { cvs?: Array<{ id?: string }> };
+    summary.cvDeleted = !afterCvDelete.cvs?.some((cv) => cv.id === cvBody.cv?.id);
+  }
+
   // 6) Çıkış ve eski çerezle deneme
   const logout = await fetch(`${base}/api/logout`, { method: "POST", headers: authed });
   summary.logoutStatus = logout.status;
@@ -188,6 +216,14 @@ async function main(): Promise<void> {
     summary.deleted === true &&
     summary.afterLogoutHomeRedirectsToLogin === true &&
     summary.afterLogoutApiStatus === 401 &&
+    summary.cvUploadStatus === 201 &&
+    summary.cvShaMatchesUpload === true &&
+    summary.cvListedAfterUpload === true &&
+    summary.cvDownloadStatus === 200 &&
+    summary.cvDownloadShaMatches === true &&
+    summary.cvAnonymousDownloadStatus === 401 &&
+    summary.cvDeleteStatus === 200 &&
+    summary.cvDeleted === true &&
     (summary.directFirestoreAnonymousStatus === 403 || typeof summary.directFirestoreAnonymousStatus === "string") &&
     (summary.directFirestoreOwnTokenStatus === undefined || summary.directFirestoreOwnTokenStatus === 403);
   summary.result = allGood ? "PASS" : "FAIL";

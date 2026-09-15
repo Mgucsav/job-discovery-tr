@@ -25,6 +25,7 @@ export interface StoreDocumentSnapshot {
 
 export interface StoreDocumentReference {
   readonly id: string;
+  get(): Promise<StoreDocumentSnapshot>;
   delete(): Promise<unknown>;
 }
 
