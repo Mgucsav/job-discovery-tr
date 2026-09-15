@@ -19,6 +19,8 @@ function emptyReport(startedAt: string): DiscoveryRunReport {
       kariyer: { status: "ok", jobsFound: 0, newJobs: 0, duplicateJobs: 0, errorCount: 0 },
       indeed: { status: "ok", jobsFound: 0, newJobs: 0, duplicateJobs: 0, errorCount: 0 },
     },
+    newPostings: [],
+    notification: { channel: "none", status: "not_configured", messages: 0 },
   };
 }
 
@@ -48,8 +50,12 @@ export async function runDiscovery(
         sourceReport.jobsFound += 1;
         try {
           const outcome = await repository.upsert(job);
-          if (outcome === "inserted") sourceReport.newJobs += 1;
-          else sourceReport.duplicateJobs += 1;
+          if (outcome === "inserted") {
+            sourceReport.newJobs += 1;
+            report.newPostings.push({ source: job.source, sourceJobId: job.sourceJobId, url: job.url, title: job.title });
+          } else {
+            sourceReport.duplicateJobs += 1;
+          }
         } catch {
           report.repositoryErrors += 1;
           sourceReport.status = "error";

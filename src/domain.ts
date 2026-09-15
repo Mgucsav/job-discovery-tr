@@ -68,6 +68,22 @@ export interface SourceRunReport {
   errorCount: number;
 }
 
+// Bu koşuda ilk kez görülen ilanın bildirim için yeterli özeti (e-posta gövdesi yok).
+export interface NewPostingSummary {
+  source: JobSource;
+  sourceJobId: string;
+  url: string;
+  title: string | null;
+}
+
+export type NotificationStatus = "not_configured" | "skipped" | "sent" | "error";
+
+export interface NotificationReport {
+  channel: "telegram" | "none";
+  status: NotificationStatus;
+  messages: number;
+}
+
 export interface DiscoveryRunReport {
   startedAt: string;
   finishedAt: string;
@@ -76,4 +92,6 @@ export interface DiscoveryRunReport {
   repositoryErrors: number;
   gmailStatus: "not_used" | "ok" | "error";
   sources: Record<JobSource, SourceRunReport>;
+  newPostings: NewPostingSummary[];
+  notification: NotificationReport;
 }

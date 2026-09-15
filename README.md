@@ -22,7 +22,8 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
    - [1. Firebase project](#1-firebase-project)
    - [2. Local environment files](#2-local-environment-files)
    - [3. Gmail: alerts, label, OAuth](#3-gmail-alerts-label-oauth)
-   - [4. Vercel](#4-vercel)
+   - [4. Telegram notifications (optional)](#4-telegram-notifications-optional)
+   - [5. Vercel](#5-vercel)
 8. [Running](#running)
 9. [Scheduling (Windows Task Scheduler)](#scheduling-windows-task-scheduler)
 10. [Verification and tests](#verification-and-tests)
@@ -56,6 +57,11 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
 - Shows the last Gmail discovery run (time, e-mails read, new / duplicate / unresolved). With an empty database it says explicitly that there are no postings yet and whether discovery has ever run — no sample data is shown as if it were real.
 - **My CVs** (`/cvs`): upload up to 10 fixed CVs (PDF or DOCX, max 4 MB each), give each a label, mark one as default, download or delete. Files live only in your Firestore account and are streamed by the server after session verification; the upcoming application assistant will pick the CV from here.
 - A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`, `/api/cvs`, `/api/cvs/{id}`) with the same session checks, used by the end-to-end verification script.
+
+**Notifications (Telegram)**
+
+- After every discovery run the CLI sends a Telegram message listing the postings that were **first seen in that run** (source, title when known, link). Nothing is sent when there is nothing new; Gmail/store failures produce a short warning instead of silence. Messages are HTML-escaped and split to respect Telegram's 4096-character limit.
+- Optional: without `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` the run report just says `not_configured`. The web app shows the notification outcome of the last run.
 
 **Automation**
 
@@ -232,6 +238,11 @@ JOB_OWNER_EMAIL=you@example.com # the account that logs into the web app
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=           # PEM; "\n" escapes are accepted
+
+# Optional Telegram notifications
+TELEGRAM_BOT_TOKEN=             # from @BotFather
+TELEGRAM_CHAT_ID=               # written by npm run telegram:setup
+APP_URL=https://job-discovery-tr.vercel.app   # appended to notifications
 ```
 
 `web/.env.local` (used by the web app; the same values also go to Vercel):
@@ -264,7 +275,19 @@ Both files are git-ignored. `.env.example` files document every variable.
 
    Revoke access at any time from *Google Account → Security → Third-party access*.
 
-### 4. Vercel
+### 4. Telegram notifications (optional)
+
+1. In Telegram, open **@BotFather** → `/newbot` → choose a name and a username ending in `bot` → copy the token into the root `.env.local` as `TELEGRAM_BOT_TOKEN`.
+2. Open your new bot in Telegram and send it any message (this creates the private chat).
+3. Run:
+
+   ```powershell
+   npm run telegram:setup
+   ```
+
+   The helper reads the bot's updates, stores your private chat id as `TELEGRAM_CHAT_ID` in `.env.local` and sends a confirmation message. From then on every discovery run notifies you about new postings.
+
+### 5. Vercel
 
 1. Import the GitHub repository as a new project.
 2. **Root Directory: `web`**, framework Next.js. Keep *"Include source files outside of the Root Directory"* enabled — the web app imports the shared core from `../src`.
@@ -285,6 +308,7 @@ npm run build            # tsc → dist/ (imports are rewritten from .ts to .js)
 npm run discover         # live Gmail → configured store, prints the run report
 npm run discover:fixtures  # parses the bundled fixture e-mails into memory (no Gmail access)
 npm run oauth:setup      # one-time Gmail authorisation
+npm run telegram:setup   # one-time Telegram chat id discovery + test message
 ```
 
 Web app:
@@ -318,7 +342,7 @@ Unregister-ScheduledTask -TaskName JobDiscovery     # remove
 
 **Unit tests**
 
-- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation.
+- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation, Telegram message formatting/splitting and Bot API calls against a fake `fetch`.
 - Web: manual-link preparation, list query parsing/filtering, a guard that `firestore.rules` still denies everything.
 
 **End-to-end against the deployed app** (`web/scripts/verify-firebase.ts`):

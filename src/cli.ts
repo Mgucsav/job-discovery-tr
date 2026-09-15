@@ -2,6 +2,7 @@ import { loadConfig, type AppConfig } from "./config.ts";
 import { runDiscovery, DiscoveryRunError } from "./discovery/service.ts";
 import { getAdminFirestore, loadFirebaseAdminConfig, resolveOwnerId } from "./firebase/admin.ts";
 import { GmailReadonlyClient } from "./gmail/client.ts";
+import { TelegramNotifier, loadTelegramConfig } from "./notify/telegram.ts";
 import { printReport } from "./report.ts";
 import type { DiscoveryRunReport } from "./domain.ts";
 import { JsonFileJobRepository } from "./storage/json-file-repository.ts";
@@ -29,18 +30,30 @@ async function selectStore(config: AppConfig): Promise<SelectedStore> {
   };
 }
 
+// Bildirim isteğe bağlıdır: TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID yoksa sessizce atlanır.
+function selectNotifier(): TelegramNotifier | null {
+  const telegram = loadTelegramConfig();
+  return telegram ? new TelegramNotifier(telegram, process.env.APP_URL?.trim() || null) : null;
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   const gmail = new GmailReadonlyClient(config.gmail);
+  const notifier = selectNotifier();
   const { repository, persistRun } = await selectStore(config);
 
   let report: DiscoveryRunReport;
   try {
     report = await runDiscovery(gmail, repository);
   } catch (error) {
-    if (error instanceof DiscoveryRunError && persistRun) await persistRun(error.report).catch(() => undefined);
+    if (error instanceof DiscoveryRunError) {
+      if (notifier) await notifier.notifyFailure(error.message);
+      if (persistRun) await persistRun(error.report).catch(() => undefined);
+    }
     throw error;
   }
+
+  if (notifier) report.notification = await notifier.notifyRun(report);
 
   if (persistRun) {
     try {
@@ -52,7 +65,11 @@ async function main(): Promise<void> {
   }
 
   printReport(report);
-  if (report.repositoryErrors > 0 || Object.values(report.sources).some((source) => source.status === "error")) {
+  if (
+    report.repositoryErrors > 0 ||
+    report.notification.status === "error" ||
+    Object.values(report.sources).some((source) => source.status === "error")
+  ) {
     process.exitCode = 1;
   }
 }

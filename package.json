@@ -13,7 +13,8 @@
     "test": "node --import tsx --test tests/**/*.test.ts",
     "discover": "node --env-file-if-exists=.env.local --import tsx src/cli.ts",
     "discover:fixtures": "node --import tsx src/fixture-cli.ts",
-    "oauth:setup": "node --env-file-if-exists=.env.local --import tsx src/gmail/oauth-cli.ts"
+    "oauth:setup": "node --env-file-if-exists=.env.local --import tsx src/gmail/oauth-cli.ts",
+    "telegram:setup": "node --env-file-if-exists=.env.local --import tsx src/notify/telegram-setup-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

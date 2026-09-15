@@ -136,6 +136,8 @@ test("keşif koşusu özeti kaydedilir ve en son koşu okunur", async () => {
       kariyer: { status: "ok", jobsFound: 1, newJobs: 1, duplicateJobs: 0, errorCount: 0 },
       indeed: { status: "ok", jobsFound: 1, newJobs: 1, duplicateJobs: 0, errorCount: 0 },
     },
+    newPostings: [{ source: "kariyer", sourceJobId: "9876543", url: "https://www.kariyer.net/is-ilani/9876543", title: null }],
+    notification: { channel: "telegram", status: "sent", messages: 1 },
   };
   assert.equal(await latestDiscoveryRun(store, OWNER), null);
   await saveDiscoveryRun(store, OWNER, report);
@@ -147,6 +149,8 @@ test("keşif koşusu özeti kaydedilir ve en son koşu okunur", async () => {
   assert.equal(latest?.newJobsTotal, 3);
   assert.equal(latest?.duplicateJobsTotal, 1);
   assert.equal(latest?.sources.kariyer.newJobs, 1);
+  assert.deepEqual(latest?.newPostings, [{ source: "kariyer", sourceJobId: "9876543", url: "https://www.kariyer.net/is-ilani/9876543", title: null }]);
+  assert.deepEqual(latest?.notification, { channel: "telegram", status: "sent", messages: 1 });
 });
 
 test("bozuk belgeler görünüm modeline alınmaz; eski Timestamp değerleri ISO'ya çevrilir", () => {

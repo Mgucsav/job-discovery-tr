@@ -4,6 +4,8 @@ import {
   type AcquisitionMethod,
   type DiscoveryRunReport,
   type JobSource,
+  type NewPostingSummary,
+  type NotificationReport,
   type StoredDiscoveryRun,
   type StoredJobPosting,
   type StoredJobPostingInput,
@@ -217,6 +219,26 @@ export function parseDiscoveryRunDocument(id: string, data: DocumentData): Store
       errorCount,
     };
   }
+  const newPostings: NewPostingSummary[] = [];
+  if (Array.isArray(data.newPostings)) {
+    for (const entry of data.newPostings as unknown[]) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const source = JOB_SOURCES.find((candidate) => candidate === record.source);
+      const sourceJobId = nullableString(record.sourceJobId);
+      const url = nullableString(record.url);
+      if (source && sourceJobId && url) newPostings.push({ source, sourceJobId, url, title: nullableString(record.title) });
+    }
+  }
+  const rawNotification = (data.notification ?? null) as Record<string, unknown> | null;
+  const notification: NotificationReport = {
+    channel: rawNotification?.channel === "telegram" ? "telegram" : "none",
+    status:
+      rawNotification?.status === "sent" || rawNotification?.status === "skipped" || rawNotification?.status === "error"
+        ? rawNotification.status
+        : "not_configured",
+    messages: finiteNumber(rawNotification?.messages) ?? 0,
+  };
   const report: DiscoveryRunReport = {
     startedAt,
     finishedAt,
@@ -225,6 +247,8 @@ export function parseDiscoveryRunDocument(id: string, data: DocumentData): Store
     repositoryErrors,
     gmailStatus,
     sources,
+    newPostings,
+    notification,
   };
   const totals = buildDiscoveryRunDocument(report, "");
   return {
