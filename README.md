@@ -175,11 +175,13 @@ Proje GitHub deposundan içe aktarılır; **Root Directory: `web`**. Ortam deği
 npm run discover          # .env.local: JOB_STORE=firestore, JOB_OWNER_EMAIL=<web hesabı>
 ```
 
-Günlük otomatik çalışma için Windows Görev Zamanlayıcı (bilgisayar açıkken her gün 09:00):
+Günlük otomatik çalışma (Windows Görev Zamanlayıcı, her gün 09:00 ve 18:00; kaçırılırsa bilgisayar açılınca çalışır). Çıktı `data/discover.log` dosyasına eklenir:
 
 ```powershell
-schtasks /Create /SC DAILY /ST 09:00 /TN "JobDiscovery" /TR "cmd /c cd /d \"C:\Users\editör_01\Desktop\Personel Job Discover System\" && npm run discover >> data\discover.log 2>&1"
+powershell -ExecutionPolicy Bypass -File scriptsegister-discovery-task.ps1
 ```
+
+Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unregister-ScheduledTask -TaskName JobDiscovery`.
 
 ## Bu aşamanın sınırları
 
