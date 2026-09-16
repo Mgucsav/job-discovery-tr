@@ -6,8 +6,9 @@ import { JobList } from "@/components/job-list";
 import { SignOutButton } from "@/components/sign-out-button";
 import { SourceFilter } from "@/components/source-filter";
 import { getVerifiedUser } from "@/lib/auth/next";
-import type { StoredDiscoveryRun, StoredJobPosting } from "@/lib/core";
+import type { StoredCv, StoredDiscoveryRun, StoredJobPosting } from "@/lib/core";
 import { applyJobListQuery, availableLevels, parseJobListQuery } from "@/lib/jobs/query";
+import { listCvs } from "@/lib/cvs/repository";
 import { getLatestDiscoveryRun, listJobPostings } from "@/lib/jobs/repository";
 import { ACQUISITION_LABELS, SOURCE_LABELS } from "@/lib/jobs/types";
 import { EXPERIENCE_LABELS } from "@/lib/core";
@@ -33,9 +34,10 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
 
   let allJobs: StoredJobPosting[] = [];
   let lastRun: StoredDiscoveryRun | null = null;
+  let cvs: StoredCv[] = [];
   let loadError = false;
   try {
-    [allJobs, lastRun] = await Promise.all([listJobPostings(user.id), getLatestDiscoveryRun(user.id)]);
+    [allJobs, lastRun, cvs] = await Promise.all([listJobPostings(user.id), getLatestDiscoveryRun(user.id), listCvs(user.id)]);
   } catch {
     loadError = true;
   }
@@ -50,6 +52,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           <div className="who">{user.email ?? "Oturum açık"}</div>
         </div>
         <div className="actions">
+          <Link href="/stats" className="button">
+            İstatistikler
+          </Link>
           <Link href="/cvs" className="button">
             CV&apos;lerim
           </Link>
@@ -81,7 +86,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             <strong>{emptyFilterMessage(query)}</strong>
           </div>
         ) : (
-          <JobList jobs={jobs} />
+          <JobList jobs={jobs} cvs={cvs} />
         )}
       </section>
     </main>

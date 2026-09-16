@@ -1,4 +1,12 @@
-import type { DiscoveryRunReport, JobPosting, StoredDiscoveryRun, StoredJobPosting, StoredJobPostingInput } from "../domain.ts";
+import { planApplicationUpdate, type ApplicationInput } from "../applications/tracking.ts";
+import type {
+  ApplicationRecord,
+  DiscoveryRunReport,
+  JobPosting,
+  StoredDiscoveryRun,
+  StoredJobPosting,
+  StoredJobPostingInput,
+} from "../domain.ts";
 import {
   DISCOVERY_RUNS_COLLECTION,
   JOB_POSTINGS_COLLECTION,
@@ -7,6 +15,7 @@ import {
   discoveryRunDocumentId,
   isJobPostingDocumentId,
   jobPostingDocumentId,
+  parseApplicationRecord,
   parseDiscoveryRunDocument,
   parseJobPostingDocument,
   planJobPostingUpsert,
@@ -90,6 +99,30 @@ export async function listStoredJobPostings(store: JobPostingStore, ownerId: str
     if (posting) postings.push(posting);
   }
   return postings;
+}
+
+export type SetApplicationResult = { ok: true; application: ApplicationRecord | null } | { ok: false; error: string };
+
+// Başvuru kaydı ilan belgesinin içinde tutulur; keşif birleştirmesi bu alana dokunmaz.
+export async function setJobApplication(
+  store: JobPostingStore,
+  ownerId: string,
+  id: string,
+  input: ApplicationInput,
+  now: () => Date = () => new Date(),
+): Promise<SetApplicationResult> {
+  if (!isJobPostingDocumentId(id)) return { ok: false, error: "Geçersiz ilan kimliği." };
+  const reference = store.collection(jobPostingsPath(ownerId)).doc(id);
+  return store.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    const data = snapshot.exists ? snapshot.data() : undefined;
+    if (!data) return { ok: false, error: "İlan bulunamadı." };
+    const nowIso = now().toISOString();
+    const plan = planApplicationUpdate(parseApplicationRecord(data.application), input, nowIso);
+    if (!plan.ok) return plan;
+    transaction.update(reference, { application: plan.application, updatedAt: nowIso });
+    return { ok: true, application: plan.application };
+  });
 }
 
 export async function deleteStoredJobPosting(store: JobPostingStore, ownerId: string, id: string): Promise<boolean> {

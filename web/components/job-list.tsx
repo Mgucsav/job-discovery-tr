@@ -1,5 +1,12 @@
 import { deleteJobPosting } from "@/app/actions";
-import { EXPERIENCE_LABELS, extractExperienceYears, inferExperienceLevel } from "@/lib/core";
+import { ApplicationForm } from "@/components/application-form";
+import {
+  APPLICATION_LABELS,
+  EXPERIENCE_LABELS,
+  extractExperienceYears,
+  inferExperienceLevel,
+  type StoredCv,
+} from "@/lib/core";
 import { ACQUISITION_LABELS, SOURCE_LABELS, type StoredJobPosting } from "@/lib/jobs/types";
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
@@ -23,7 +30,7 @@ function ExperienceBadge({ job }: { job: StoredJobPosting }) {
   );
 }
 
-export function JobList({ jobs }: { jobs: StoredJobPosting[] }) {
+export function JobList({ jobs, cvs }: { jobs: StoredJobPosting[]; cvs: StoredCv[] }) {
   return (
     <ul className="job-list">
       {jobs.map((job) => (
@@ -44,6 +51,9 @@ export function JobList({ jobs }: { jobs: StoredJobPosting[] }) {
             <span>İlk görülme: {dateFormatter.format(new Date(job.firstSeenAt))}</span>
             <span>{ACQUISITION_LABELS[job.acquisitionMethod]}</span>
             <ExperienceBadge job={job} />
+            {job.application ? (
+              <span className={`badge status-${job.application.status}`}>{APPLICATION_LABELS[job.application.status]}</span>
+            ) : null}
           </div>
           {job.description ? <p className="job-desc">{job.description}</p> : null}
           <div className="job-actions">
@@ -57,6 +67,7 @@ export function JobList({ jobs }: { jobs: StoredJobPosting[] }) {
               </button>
             </form>
           </div>
+          <ApplicationForm jobId={job.id} application={job.application} cvs={cvs} />
         </li>
       ))}
     </ul>

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { endSession, getVerifiedUser } from "@/lib/auth/next";
+import { isApplicationStatus } from "@/lib/core";
+import { listCvs } from "@/lib/cvs/repository";
 import { prepareManualLink } from "@/lib/jobs/manual-link";
 import { OUTCOME_MESSAGES } from "@/lib/jobs/messages";
-import { deleteJobPosting as deleteStoredJobPosting, upsertJobPosting } from "@/lib/jobs/repository";
+import { deleteJobPosting as deleteStoredJobPosting, setApplication, upsertJobPosting } from "@/lib/jobs/repository";
 import type { UpsertOutcome } from "@/lib/jobs/types";
 
 export interface AddLinkState {
@@ -43,6 +45,29 @@ export async function deleteJobPosting(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "").trim();
   await deleteStoredJobPosting(user.id, id);
   revalidatePath("/");
+}
+
+// Başvuru durumu kaydı. CV adı sunucuda kendi CV listenizden çözülür; istemciden gelen ada güvenilmez.
+export async function saveApplication(formData: FormData): Promise<void> {
+  const user = await getVerifiedUser();
+  if (!user) redirect("/login");
+
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "");
+  const cvId = String(formData.get("cvId") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "");
+  if (status !== "none" && !isApplicationStatus(status)) return;
+
+  let cvName: string | null = null;
+  if (cvId) {
+    const cvs = await listCvs(user.id);
+    cvName = cvs.find((cv) => cv.id === cvId)?.name ?? null;
+    if (!cvName) return;
+  }
+
+  await setApplication(user.id, id, { status: status as "none", cvId: cvId || null, cvName, notes });
+  revalidatePath("/");
+  revalidatePath("/stats");
 }
 
 export async function signOut(): Promise<void> {

@@ -2,8 +2,11 @@
 // Firestore belge mantığı çoğaltılmaz. (Turbopack kökü next.config.ts içinde depo köküne ayarlıdır.)
 export {
   ACQUISITION_METHODS,
+  APPLICATION_STATUSES,
   JOB_SOURCES,
   type AcquisitionMethod,
+  type ApplicationRecord,
+  type ApplicationStatus,
   type DiscoveryRunReport,
   type JobPosting,
   type JobSource,
@@ -12,6 +15,16 @@ export {
   type StoredJobPostingInput,
 } from "../../src/domain";
 export { validateJobUrl } from "../../src/discovery/parser";
+export {
+  APPLICATION_LABELS,
+  applicationTotals,
+  isApplicationStatus,
+  summarizeByCv,
+  summarizeByExperience,
+  summarizeBySource,
+  type ApplicationBucket,
+  type ApplicationInput,
+} from "../../src/applications/tracking";
 export {
   EXPERIENCE_LABELS,
   EXPERIENCE_LEVELS,
@@ -26,6 +39,7 @@ export {
   deleteStoredJobPosting,
   latestDiscoveryRun,
   listStoredJobPostings,
+  setJobApplication,
   upsertStoredJobPosting,
   type JobPostingStore,
 } from "../../src/storage/job-posting-store";

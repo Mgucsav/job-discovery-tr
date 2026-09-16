@@ -1,7 +1,9 @@
 import {
   ACQUISITION_METHODS,
+  APPLICATION_STATUSES,
   JOB_SOURCES,
   type AcquisitionMethod,
+  type ApplicationRecord,
   type DiscoveryRunReport,
   type JobSource,
   type NewPostingSummary,
@@ -155,6 +157,25 @@ export function parseJobPostingDocument(id: string, data: DocumentData): StoredJ
     firstSeenAt,
     acquisitionMethod: method,
     sourceEmailId: nullableString(data.sourceEmailId),
+    application: parseApplicationRecord(data.application),
+  };
+}
+
+// Başvuru kaydı bozuksa veya durum tanınmıyorsa yok sayılır; alan uydurulmaz.
+export function parseApplicationRecord(value: unknown): ApplicationRecord | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const status = APPLICATION_STATUSES.find((candidate) => candidate === record.status);
+  const updatedAt = isoString(record.updatedAt);
+  if (!status || !updatedAt) return null;
+  return {
+    status,
+    appliedAt: isoString(record.appliedAt),
+    decidedAt: isoString(record.decidedAt),
+    cvId: nullableString(record.cvId),
+    cvName: nullableString(record.cvName),
+    notes: nullableString(record.notes),
+    updatedAt,
   };
 }
 

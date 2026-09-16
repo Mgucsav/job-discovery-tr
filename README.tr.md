@@ -195,6 +195,15 @@ Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unre
 - Başlıkta düzey ifadesi yoksa **hiçbir tahmin üretilmez**; ilan "Belirtilmemiş" grubunda kalır.
 - Düzey saklanmaz, her okumada yeniden hesaplanır; kural iyileştikçe eski ilanlar da yeniden sınıflanır. Arayüzde ve Telegram mesajında her zaman "(tahmin)" etiketiyle gösterilir.
 
+## Başvuru takibi ve CV performansı
+
+Her ilan satırının altında küçük bir form var: **durum** (Başvurdum / Görüşme / Teklif / Reddedildi / Geri çektim / Başvurmadım), **kullanılan CV** ve kısa **not**.
+
+- Başvuru tarihi ilk işaretlemede yazılır ve sonraki güncellemelerde değişmez; sonuç tarihi durum değiştiğinde yazılır.
+- Kullanılan CV'nin adı kayda kopyalanır; CV'yi sonradan silseniz bile istatistik anlamlı kalır.
+- Gmail keşfi aynı ilanı tekrar gördüğünde başvuru kaydına dokunmaz (yalnızca eksik başlık/şirket/konum tamamlanır).
+- **İstatistikler** sayfası (`/stats`): CV başına başvuru sayısı, yanıt bekleyen, görüşme, teklif, red, yanıt oranı ve olumlu oran; aynı kırılım deneyim düzeyine (tahmin) ve kaynağa göre de verilir. Oranlar yalnızca sizin kaydettiğiniz başvurulardan hesaplanır; tahmin veya dış veri yoktur.
+
 ## Bu aşamanın sınırları
 
 Bu sürüm yalnızca ilan keşfeder. Şunları bilinçli olarak yapmaz:

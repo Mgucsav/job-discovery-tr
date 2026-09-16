@@ -36,6 +36,22 @@ export interface StoredJobPostingInput {
 }
 
 // Kalıcı depodan okunan ilan (web görünüm modeli ve CLI listeleme için ortak).
+// Başvuru takibi: ilan başına tek kayıt. Hangi CV ile başvurulduğu, CV silinse bile istatistik
+// anlamlı kalsın diye ad kopyasıyla birlikte saklanır.
+export const APPLICATION_STATUSES = ["applied", "interview", "offer", "rejected", "withdrawn"] as const;
+
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export interface ApplicationRecord {
+  status: ApplicationStatus;
+  appliedAt: string | null;
+  decidedAt: string | null;
+  cvId: string | null;
+  cvName: string | null;
+  notes: string | null;
+  updatedAt: string;
+}
+
 export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "descriptionStatus"> {
   id: string;
   company: string | null;
@@ -44,6 +60,7 @@ export interface StoredJobPosting extends Omit<JobPosting, "sourceEmailId" | "de
   descriptionStatus: "present" | "missing";
   acquisitionMethod: AcquisitionMethod;
   sourceEmailId: string | null;
+  application: ApplicationRecord | null;
 }
 
 // Gmail keşif koşusunun kalıcı özeti (web'de "son keşif" satırı için).

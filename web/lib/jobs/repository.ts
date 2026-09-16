@@ -3,9 +3,11 @@ import {
   deleteStoredJobPosting,
   latestDiscoveryRun,
   listStoredJobPostings,
+  setJobApplication,
   upsertStoredJobPosting,
   type StoredDiscoveryRun,
   type StoredJobPosting,
+  type ApplicationInput,
   type StoredJobPostingInput,
   type UpsertOutcome,
 } from "@/lib/core";
@@ -25,6 +27,10 @@ export async function listJobPostings(uid: string): Promise<StoredJobPosting[]> 
 
 export async function deleteJobPosting(uid: string, id: string): Promise<boolean> {
   return deleteStoredJobPosting(getAdminFirestore(), uid, id);
+}
+
+export async function setApplication(uid: string, id: string, input: ApplicationInput) {
+  return setJobApplication(getAdminFirestore(), uid, id, input);
 }
 
 export async function getLatestDiscoveryRun(uid: string): Promise<StoredDiscoveryRun | null> {

@@ -55,6 +55,8 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
 - Job list with source filter (LinkedIn / Kariyer.net / Indeed), acquisition filter (manual / Gmail), **experience-level filter (inferred)**, first-seen sorting, "Open posting" and "Delete".
 - "Add link": paste a job URL; it passes through the same `validateJobUrl` rules as the discovery pipeline, is canonicalised and stored with `acquisitionMethod: "manual"`. Title / company / location / description are optional and stay `null` when empty.
 - Shows the last Gmail discovery run (time, e-mails read, new / duplicate / unresolved). With an empty database it says explicitly that there are no postings yet and whether discovery has ever run — no sample data is shown as if it were real.
+- **Application tracking**: every posting row carries a small form — status (`applied`, `interview`, `offer`, `rejected`, `withdrawn`, or none), the CV you used, and a free-text note. The application date is stamped the first time you mark it and never moves; the decision date is stamped when the outcome changes. A later Gmail discovery of the same posting never touches the application record.
+- **Application stats** (`/stats`): per-CV performance (applications, waiting, interview, offer, rejected, response rate, positive rate) plus the same breakdown by inferred experience level and by source — the answer to "which CV works for which kind of job". CV names are snapshotted on the record, so statistics survive deleting a CV.
 - **My CVs** (`/cvs`): upload up to 10 fixed CVs (PDF or DOCX, max 4 MB each), give each a label, mark one as default, download or delete. Files live only in your Firestore account and are streamed by the server after session verification; the upcoming application assistant will pick the CV from here.
 - A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`, `/api/cvs`, `/api/cvs/{id}`) with the same session checks, used by the end-to-end verification script.
 
@@ -167,7 +169,7 @@ users/{uid}/cvs/{cvId}                  # CV metadata
 users/{uid}/cvs/{cvId}/chunks/{index}   # file bytes in 700 KB chunks
 ```
 
-Posting document fields: `ownerId`, `source`, `sourceJobId`, `url`, `title`, `company`, `location`, `description` (each optional field is `null` when unknown), `firstSeenAt`, `acquisitionMethod` (`"manual"` | `"gmail"`), `sourceEmailId` (`null` for manual entries — a fake Gmail id is never written), `createdAt`, `updatedAt`. Time fields are ISO-8601 strings, so lexicographic order equals chronological order and no Firestore `Timestamp` objects cross module boundaries.
+Posting document fields: `ownerId`, `source`, `sourceJobId`, `url`, `title`, `company`, `location`, `description`, `application` (`{ status, appliedAt, decidedAt, cvId, cvName, notes, updatedAt }` or absent) (each optional field is `null` when unknown), `firstSeenAt`, `acquisitionMethod` (`"manual"` | `"gmail"`), `sourceEmailId` (`null` for manual entries — a fake Gmail id is never written), `createdAt`, `updatedAt`. Time fields are ISO-8601 strings, so lexicographic order equals chronological order and no Firestore `Timestamp` objects cross module boundaries.
 
 The document id is the uniqueness key (owner + source + source job id).
 
@@ -351,7 +353,7 @@ Unregister-ScheduledTask -TaskName JobDiscovery     # remove
 
 **Unit tests**
 
-- Root: URL validation and canonicalisation, HTML title extraction, experience-level classification (Turkish suffixes, compound titles, no false positives) and years extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation, Telegram message formatting/splitting and Bot API calls against a fake `fetch`.
+- Root: URL validation and canonicalisation, HTML title extraction, experience-level classification (Turkish suffixes, compound titles, no false positives) and years extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation, Telegram message formatting/splitting and Bot API calls against a fake `fetch`, application state transitions (application date pinned, decision date re-stamped only on change, `none` clears the record) and the statistics aggregation.
 - Web: manual-link preparation, list query parsing/filtering, a guard that `firestore.rules` still denies everything.
 
 **End-to-end against the deployed app** (`web/scripts/verify-firebase.ts`):
@@ -387,8 +389,7 @@ Deliberately **not** implemented in this version:
 
 Planned next (human-in-the-loop "assisted apply" track):
 
-1. Application tracking in the web app (status, notes, hide/archive)
-2. Per-posting match score with reasons, computed from the stored CVs
+1. Per-posting match score with reasons, computed from the stored CVs
 3. A saved answer bank for recurring application questions
 4. A local browser assistant that pre-fills applications and stops at the review step — you press *Submit*
 
