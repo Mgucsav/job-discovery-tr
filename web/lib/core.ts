@@ -26,6 +26,17 @@ export {
   type ApplicationInput,
 } from "../../src/applications/tracking";
 export {
+  PERIOD_OPTIONS,
+  comparePeriods,
+  delta,
+  isPeriodDays,
+  metricsForRange,
+  weeklyTrend,
+  type PeriodComparison,
+  type PeriodDays,
+  type PeriodMetrics,
+} from "../../src/applications/trends";
+export {
   EXPERIENCE_LABELS,
   EXPERIENCE_LEVELS,
   experienceLabel,

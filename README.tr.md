@@ -209,6 +209,16 @@ Akış gerçek hayattaki sırayı izler:
 - Gmail keşfi aynı ilanı tekrar gördüğünde başvuru kaydına dokunmaz (yalnızca eksik başlık/şirket/konum tamamlanır).
 - **İstatistikler** sayfası (`/stats`): CV başına başvuru sayısı, yanıt bekleyen, görüşme, teklif, red, yanıt oranı ve olumlu oran; aynı kırılım deneyim düzeyine (tahmin) ve kaynağa göre de verilir. Oranlar yalnızca sizin kaydettiğiniz başvurulardan hesaplanır; tahmin veya dış veri yoktur.
 
+## Dönemsel takip
+
+`/trends` sayfası "bu dönem ne oldu, geçen döneme göre nasıl?" sorusunu yanıtlar. Son **7 / 30 / 90 gün** seçilir ve aynı uzunluktaki bir önceki dönemle karşılaştırılır:
+
+- açılan ilan (ilk kez görülen), yapılan başvuru, olumlu dönüş (görüşme + teklif), red;
+- başvuru oranı (başvuru / açılan ilan), yanıt oranı (yanıtlanan / başvuru), olumlu oran (olumlu / yanıtlanan);
+- son 8 haftanın haftalık kırılımı.
+
+Sayımlar kayıtların kendi tarihlerinden gelir (`firstSeenAt`, `appliedAt`, `decidedAt`); dönemler çakışmaz. Önceki dönem sıfırsa yüzde değişim gösterilmez. **Sınır:** ilan başına tek başvuru kaydı tutulduğu için sonuç tarihi en son duruma aittir; görüşmeden sonra gelen red yalnızca red olarak sayılır.
+
 ## Bu aşamanın sınırları
 
 Bu sürüm yalnızca ilan keşfeder. Şunları bilinçli olarak yapmaz:

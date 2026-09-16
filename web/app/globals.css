@@ -439,3 +439,15 @@ table.stats thead th:first-child {
   padding: 5px 8px;
   font-size: 0.85rem;
 }
+
+.delta {
+  font-weight: 600;
+}
+
+.delta.up {
+  color: var(--success);
+}
+
+.delta.down {
+  color: var(--danger);
+}

@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/", label: "İlanlar" },
   { href: "/applications", label: "Başvurular" },
   { href: "/stats", label: "İstatistikler" },
+  { href: "/trends", label: "Dönemsel" },
   { href: "/cvs", label: "CV'lerim" },
 ] as const;
 
