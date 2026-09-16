@@ -1,4 +1,5 @@
 import { deleteJobPosting } from "@/app/actions";
+import { EXPERIENCE_LABELS, extractExperienceYears, inferExperienceLevel } from "@/lib/core";
 import { ACQUISITION_LABELS, SOURCE_LABELS, type StoredJobPosting } from "@/lib/jobs/types";
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
@@ -6,6 +7,21 @@ const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
   timeStyle: "short",
   timeZone: "Europe/Istanbul",
 });
+
+// Deneyim düzeyi sitenin alanı değildir: başlıktan (yoksa açıklamadan) çıkarılır ve "tahmin" olarak
+// gösterilir. Çıkarılamıyorsa hiçbir şey gösterilmez.
+function ExperienceBadge({ job }: { job: StoredJobPosting }) {
+  const inferred = inferExperienceLevel(job.title, job.description);
+  if (!inferred) return null;
+  const years = extractExperienceYears(job.description);
+  const source = inferred.source === "title" ? "başlıktan" : "açıklamadan";
+  return (
+    <span className="badge guess" title={`"${inferred.evidence}" ifadesinden ${source} tahmin edildi; ilan e-postasında deneyim alanı yer almaz.`}>
+      {EXPERIENCE_LABELS[inferred.level]}
+      {years !== null ? ` · ${years}+ yıl` : ""} (tahmin)
+    </span>
+  );
+}
 
 export function JobList({ jobs }: { jobs: StoredJobPosting[] }) {
   return (
@@ -27,6 +43,7 @@ export function JobList({ jobs }: { jobs: StoredJobPosting[] }) {
             <span>{job.location ?? "Konum belirtilmedi"}</span>
             <span>İlk görülme: {dateFormatter.format(new Date(job.firstSeenAt))}</span>
             <span>{ACQUISITION_LABELS[job.acquisitionMethod]}</span>
+            <ExperienceBadge job={job} />
           </div>
           {job.description ? <p className="job-desc">{job.description}</p> : null}
           <div className="job-actions">

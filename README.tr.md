@@ -187,6 +187,14 @@ powershell -ExecutionPolicy Bypass -File scripts\register-discovery-task.ps1
 
 Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unregister-ScheduledTask -TaskName JobDiscovery`.
 
+## Deneyim düzeyi (tahmin)
+
+İş alarmı e-postalarının ilan kartlarında sitenin "deneyim düzeyi" alanı **yoktur**; kartta yalnızca başlık ve bazen "Şirket · Konum" satırı bulunur. Bu yüzden düzey, `src/discovery/experience.ts` içindeki kural tabanlı sınıflandırıcıyla **başlıktan** (elle girilen açıklama varsa ondan da) çıkarılır: stajyer, yeni mezun/giriş, junior, uzman yardımcısı, uzman/orta, kıdemli, takım lideri, yönetici.
+
+- Türkçe ekler ("Stajyeri", "Uzmanı", "Müdürü") ve bileşik unvanlar gözetilir: "Müdür Yardımcısı" → yönetici, "Uzman Yardımcısı" → uzman yardımcısı, "Senior Manager" → yönetici.
+- Başlıkta düzey ifadesi yoksa **hiçbir tahmin üretilmez**; ilan "Belirtilmemiş" grubunda kalır.
+- Düzey saklanmaz, her okumada yeniden hesaplanır; kural iyileştikçe eski ilanlar da yeniden sınıflanır. Arayüzde ve Telegram mesajında her zaman "(tahmin)" etiketiyle gösterilir.
+
 ## Bu aşamanın sınırları
 
 Bu sürüm yalnızca ilan keşfeder. Şunları bilinçli olarak yapmaz:

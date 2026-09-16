@@ -12,6 +12,15 @@ export {
   type StoredJobPostingInput,
 } from "../../src/domain";
 export { validateJobUrl } from "../../src/discovery/parser";
+export {
+  EXPERIENCE_LABELS,
+  EXPERIENCE_LEVELS,
+  experienceLabel,
+  extractExperienceYears,
+  inferExperienceLevel,
+  type ExperienceInference,
+  type ExperienceLevel,
+} from "../../src/discovery/experience";
 export type { UpsertOutcome } from "../../src/storage/repository";
 export {
   deleteStoredJobPosting,

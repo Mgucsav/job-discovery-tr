@@ -7,9 +7,10 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { SourceFilter } from "@/components/source-filter";
 import { getVerifiedUser } from "@/lib/auth/next";
 import type { StoredDiscoveryRun, StoredJobPosting } from "@/lib/core";
-import { applyJobListQuery, parseJobListQuery } from "@/lib/jobs/query";
+import { applyJobListQuery, availableLevels, parseJobListQuery } from "@/lib/jobs/query";
 import { getLatestDiscoveryRun, listJobPostings } from "@/lib/jobs/repository";
 import { ACQUISITION_LABELS, SOURCE_LABELS } from "@/lib/jobs/types";
+import { EXPERIENCE_LABELS } from "@/lib/core";
 
 // Kişisel sayfa: her istekte sunucuda doğrulanır, statik çıktı üretilmez.
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ function emptyFilterMessage(query: ReturnType<typeof parseJobListQuery>): string
   const parts: string[] = [];
   if (query.source) parts.push(SOURCE_LABELS[query.source]);
   if (query.method) parts.push(ACQUISITION_LABELS[query.method].toLocaleLowerCase("tr-TR"));
+  if (query.level) parts.push(query.level === "unknown" ? "deneyim belirtilmemiş" : EXPERIENCE_LABELS[query.level]);
   return parts.length > 0 ? `${parts.join(" · ")} için kayıtlı ilan yok.` : "Kayıtlı ilan yok.";
 }
 
@@ -60,7 +62,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       <section className="card">
         <h2>İlanlar {total > 0 ? `(${jobs.length} / ${total})` : ""}</h2>
         {loadError ? null : <DiscoveryStatus run={lastRun} />}
-        <SourceFilter query={query} />
+        <SourceFilter query={query} levels={availableLevels(allJobs)} />
         {loadError ? (
           <p className="message error" role="alert">
             İlanlar yüklenemedi. Sayfayı yenileyin; sorun sürerse Firebase bağlantısını kontrol edin.

@@ -1,3 +1,4 @@
+import { EXPERIENCE_LABELS, inferExperienceLevel } from "../discovery/experience.ts";
 import type { DiscoveryRunReport, JobSource, NewPostingSummary, NotificationReport } from "../domain.ts";
 
 // Telegram Bot API üzerinden bildirim. Token yalnızca istek URL'sinde kullanılır; loglanmaz.
@@ -23,7 +24,12 @@ export function escapeHtml(value: string): string {
 
 function postingLine(posting: NewPostingSummary): string {
   const title = posting.title ? escapeHtml(posting.title) : "Başlık yok";
-  const meta = [posting.company, posting.location].filter((value): value is string => Boolean(value)).map(escapeHtml).join(" · ");
+  // Deneyim düzeyi ilan kartında yer almaz; başlıktan çıkarılır ve "tahmin" olarak işaretlenir.
+  const inferred = inferExperienceLevel(posting.title);
+  const meta = [posting.company, posting.location, inferred ? `${EXPERIENCE_LABELS[inferred.level]} (tahmin)` : null]
+    .filter((value): value is string => Boolean(value))
+    .map(escapeHtml)
+    .join(" · ");
   return `• <b>${SOURCE_LABELS[posting.source]}</b> — <a href="${escapeHtml(posting.url)}">${title}</a>${meta ? ` — ${meta}` : ""}`;
 }
 

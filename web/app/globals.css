@@ -323,3 +323,11 @@ button[disabled] {
 input[type="file"] {
   padding: 6px;
 }
+
+.badge.guess {
+  border-color: var(--border);
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 0;
+  cursor: help;
+}

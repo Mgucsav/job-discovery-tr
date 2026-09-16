@@ -1,13 +1,17 @@
 import Link from "next/link";
-import { ACQUISITION_METHODS, JOB_SOURCES } from "@/lib/core";
-import { buildJobListHref, type JobListQuery } from "@/lib/jobs/query";
+import { ACQUISITION_METHODS, EXPERIENCE_LABELS, JOB_SOURCES } from "@/lib/core";
+import { buildJobListHref, type JobListQuery, type LevelFilter } from "@/lib/jobs/query";
 import { ACQUISITION_LABELS, SOURCE_LABELS } from "@/lib/jobs/types";
 
 function chipClass(active: boolean): string {
   return active ? "chip active" : "chip";
 }
 
-export function SourceFilter({ query }: { query: JobListQuery }) {
+function levelLabel(level: LevelFilter): string {
+  return level === "unknown" ? "Belirtilmemiş" : EXPERIENCE_LABELS[level];
+}
+
+export function SourceFilter({ query, levels }: { query: JobListQuery; levels: LevelFilter[] }) {
   return (
     <div className="filters">
       <div className="group">
@@ -21,6 +25,21 @@ export function SourceFilter({ query }: { query: JobListQuery }) {
           </Link>
         ))}
       </div>
+      {levels.length > 0 ? (
+        <div className="group">
+          <span className="group-label" title="Deneyim düzeyi ilan e-postasında yer almaz; başlıktan tahmin edilir.">
+            Deneyim (tahmin):
+          </span>
+          <Link href={buildJobListHref({ ...query, level: null })} className={chipClass(query.level === null)}>
+            Tümü
+          </Link>
+          {levels.map((level) => (
+            <Link key={level} href={buildJobListHref({ ...query, level })} className={chipClass(query.level === level)}>
+              {levelLabel(level)}
+            </Link>
+          ))}
+        </div>
+      ) : null}
       <div className="group">
         <span className="group-label">Edinilme:</span>
         <Link href={buildJobListHref({ ...query, method: null })} className={chipClass(query.method === null)}>

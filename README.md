@@ -52,11 +52,18 @@ Live instance (private, login required): `https://job-discovery-tr.vercel.app`
 **Web app (`web/`)**
 
 - Email + password login for exactly one account (public sign-up is disabled in Firebase Auth).
-- Job list with source filter (LinkedIn / Kariyer.net / Indeed), acquisition filter (manual / Gmail), first-seen sorting, "Open posting" and "Delete".
+- Job list with source filter (LinkedIn / Kariyer.net / Indeed), acquisition filter (manual / Gmail), **experience-level filter (inferred)**, first-seen sorting, "Open posting" and "Delete".
 - "Add link": paste a job URL; it passes through the same `validateJobUrl` rules as the discovery pipeline, is canonicalised and stored with `acquisitionMethod: "manual"`. Title / company / location / description are optional and stay `null` when empty.
 - Shows the last Gmail discovery run (time, e-mails read, new / duplicate / unresolved). With an empty database it says explicitly that there are no postings yet and whether discovery has ever run — no sample data is shown as if it were real.
 - **My CVs** (`/cvs`): upload up to 10 fixed CVs (PDF or DOCX, max 4 MB each), give each a label, mark one as default, download or delete. Files live only in your Firestore account and are streamed by the server after session verification; the upcoming application assistant will pick the CV from here.
 - A small JSON API (`/api/login`, `/api/logout`, `/api/jobs`, `/api/cvs`, `/api/cvs/{id}`) with the same session checks, used by the end-to-end verification script.
+
+**Experience level (inferred, never claimed as the site's field)**
+
+- The alert e-mails' job cards carry only a title and sometimes a "Company · Location" line — **no seniority field**. Reading the site's own "Experience level" would require opening the job page, which this project deliberately does not do.
+- So the level is *derived* from the title (and, when you paste one yourself, the description) by a rule-based classifier in `src/discovery/experience.ts`: `intern`, `entry`, `junior`, `associate`, `mid`, `senior`, `lead`, `manager`. Turkish suffixes are handled ("Stajyeri", "Uzmanı", "Müdürü"), compound titles resolve to the more specific level ("Müdür Yardımcısı" → manager, "Uzman Yardımcısı" → associate, "Senior Manager" → manager), and both Turkish and invariant lower-casing are tried so that "Intern" does not become "ıntern".
+- Titles with no level wording stay **unclassified** — nothing is guessed. Every level shown in the UI and in Telegram is labelled "(tahmin)" / inferred, with the matched phrase available as a tooltip.
+- The level is **not stored**; it is recomputed on every read, so improving the rules instantly reclassifies existing postings. `extractExperienceYears` additionally reads "3+ yıl deneyim" / "3 years of experience" style phrases from a description when one exists.
 
 **Notifications (Telegram)**
 
@@ -344,7 +351,7 @@ Unregister-ScheduledTask -TaskName JobDiscovery     # remove
 
 **Unit tests**
 
-- Root: URL validation and canonicalisation, HTML title extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation, Telegram message formatting/splitting and Bot API calls against a fake `fetch`.
+- Root: URL validation and canonicalisation, HTML title extraction, experience-level classification (Turkish suffixes, compound titles, no false positives) and years extraction, fixture parsing, JSON repository first-seen semantics, run-report accounting, Firestore store semantics via an in-memory store (merge rule, ownership paths, run summaries, malformed-document handling), CV chunking/integrity/default handling and upload validation, Telegram message formatting/splitting and Bot API calls against a fake `fetch`.
 - Web: manual-link preparation, list query parsing/filtering, a guard that `firestore.rules` still denies everything.
 
 **End-to-end against the deployed app** (`web/scripts/verify-firebase.ts`):
