@@ -47,26 +47,38 @@ export async function deleteJobPosting(formData: FormData): Promise<void> {
   revalidatePath("/");
 }
 
-// Başvuru durumu kaydı. CV adı sunucuda kendi CV listenizden çözülür; istemciden gelen ada güvenilmez.
-export async function saveApplication(formData: FormData): Promise<void> {
+// Tek başvuru eylemi: "Başvurdum" düğmesi, durum taşıma düğmeleri ve CV/not düzeltmesi bunu kullanır.
+// CV adı sunucuda kendi CV listenizden çözülür; istemciden gelen ada güvenilmez.
+export async function setApplicationStatus(formData: FormData): Promise<void> {
   const user = await getVerifiedUser();
   if (!user) redirect("/login");
 
   const id = String(formData.get("id") ?? "").trim();
   const status = String(formData.get("status") ?? "");
-  const cvId = String(formData.get("cvId") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "");
   if (status !== "none" && !isApplicationStatus(status)) return;
 
-  let cvName: string | null = null;
-  if (cvId) {
-    const cvs = await listCvs(user.id);
-    cvName = cvs.find((cv) => cv.id === cvId)?.name ?? null;
-    if (!cvName) return;
+  // cvId/notes alanları formda yoksa mevcut değerler korunur (undefined gönderilir).
+  const rawCv = formData.get("cvId");
+  const rawNotes = formData.get("notes");
+  let cvId: string | null | undefined;
+  let cvName: string | null | undefined;
+  if (rawCv !== null) {
+    cvId = String(rawCv).trim() || null;
+    cvName = null;
+    if (cvId) {
+      const cvs = await listCvs(user.id);
+      cvName = cvs.find((cv) => cv.id === cvId)?.name ?? null;
+      if (!cvName) return;
+    }
   }
 
-  await setApplication(user.id, id, { status: status as "none", cvId: cvId || null, cvName, notes });
+  await setApplication(user.id, id, {
+    status: status as "none",
+    ...(cvId !== undefined ? { cvId, cvName } : {}),
+    ...(rawNotes !== null ? { notes: String(rawNotes) } : {}),
+  });
   revalidatePath("/");
+  revalidatePath("/applications");
   revalidatePath("/stats");
 }
 

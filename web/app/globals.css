@@ -422,3 +422,20 @@ table.stats thead th:first-child {
   white-space: nowrap;
   border: 0;
 }
+
+.apply {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.apply select {
+  width: auto;
+  flex: 0 1 240px;
+  padding: 5px 8px;
+  font-size: 0.85rem;
+}

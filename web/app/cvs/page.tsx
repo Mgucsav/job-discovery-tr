@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CvList } from "@/components/cv-list";
 import { CvUploadForm } from "@/components/cv-upload-form";
-import { SignOutButton } from "@/components/sign-out-button";
+import { Nav } from "@/components/nav";
 import { getVerifiedUser } from "@/lib/auth/next";
 import { CV_MAX_COUNT, type StoredCv } from "@/lib/core";
 import { listCvs } from "@/lib/cvs/repository";
@@ -24,18 +23,7 @@ export default async function CvsPage() {
 
   return (
     <main className="container">
-      <div className="topbar">
-        <div>
-          <h1>CV&apos;lerim</h1>
-          <div className="who">{user.email ?? "Oturum açık"}</div>
-        </div>
-        <div className="actions">
-          <Link href="/" className="button">
-            İlanlar
-          </Link>
-          <SignOutButton />
-        </div>
-      </div>
+      <Nav title="CV'lerim" email={user.email} current="/cvs" />
 
       <CvUploadForm remaining={Math.max(0, CV_MAX_COUNT - cvs.length)} />
 

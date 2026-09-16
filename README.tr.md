@@ -197,7 +197,12 @@ Görev `scripts/run-discovery.cmd` betiğini çağırır; kaldırmak için `Unre
 
 ## Başvuru takibi ve CV performansı
 
-Her ilan satırının altında küçük bir form var: **durum** (Başvurdum / Görüşme / Teklif / Reddedildi / Geri çektim / Başvurmadım), **kullanılan CV** ve kısa **not**.
+Akış gerçek hayattaki sırayı izler:
+
+1. **İlanlar** sayfasında ilanın altında tek düğme: **"Başvurdum"** (yanında hangi CV ile başvurduğunuz; varsayılan CV önceden seçili).
+2. Başvurduğunuz ilan listeden çıkar ve **Başvurular** sayfasındaki **Aktif** sekmesine düşer.
+3. E-postayla yanıt geldiğinde tek tıkla taşırsınız: **Görüşmeye çağrıldım** → Görüşmeler, **Teklif aldım** → Teklifler, **Reddedildim** → Reddedilenler, **Geri çektim** → Geri çekilenler.
+4. Her satırda kullanılan CV ve not sonradan düzeltilebilir; yanlış işaretlemeyi "Başvuruyu kaldır" ile geri alırsınız.
 
 - Başvuru tarihi ilk işaretlemede yazılır ve sonraki güncellemelerde değişmez; sonuç tarihi durum değiştiğinde yazılır.
 - Kullanılan CV'nin adı kayda kopyalanır; CV'yi sonradan silseniz bile istatistik anlamlı kalır.

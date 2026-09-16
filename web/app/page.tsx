@@ -3,15 +3,14 @@ import { redirect } from "next/navigation";
 import { AddLinkForm } from "@/components/add-link-form";
 import { DiscoveryStatus } from "@/components/discovery-status";
 import { JobList } from "@/components/job-list";
-import { SignOutButton } from "@/components/sign-out-button";
+import { Nav } from "@/components/nav";
 import { SourceFilter } from "@/components/source-filter";
 import { getVerifiedUser } from "@/lib/auth/next";
-import type { StoredCv, StoredDiscoveryRun, StoredJobPosting } from "@/lib/core";
-import { applyJobListQuery, availableLevels, parseJobListQuery } from "@/lib/jobs/query";
+import { EXPERIENCE_LABELS, type StoredCv, type StoredDiscoveryRun, type StoredJobPosting } from "@/lib/core";
 import { listCvs } from "@/lib/cvs/repository";
+import { applyJobListQuery, availableLevels, buildJobListHref, parseJobListQuery } from "@/lib/jobs/query";
 import { getLatestDiscoveryRun, listJobPostings } from "@/lib/jobs/repository";
 import { ACQUISITION_LABELS, SOURCE_LABELS } from "@/lib/jobs/types";
-import { EXPERIENCE_LABELS } from "@/lib/core";
 
 // Kişisel sayfa: her istekte sunucuda doğrulanır, statik çıktı üretilmez.
 export const dynamic = "force-dynamic";
@@ -42,37 +41,36 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     loadError = true;
   }
   const jobs = applyJobListQuery(allJobs, query);
-  const total = allJobs.length;
+  // Başvurulan ilanlar varsayılan listede görünmez; takipleri Başvurular sayfasındadır.
+  const openJobs = allJobs.filter((job) => job.application === null);
+  const appliedCount = allJobs.length - openJobs.length;
 
   return (
     <main className="container">
-      <div className="topbar">
-        <div>
-          <h1>İş İlanı Keşfi</h1>
-          <div className="who">{user.email ?? "Oturum açık"}</div>
-        </div>
-        <div className="actions">
-          <Link href="/stats" className="button">
-            İstatistikler
-          </Link>
-          <Link href="/cvs" className="button">
-            CV&apos;lerim
-          </Link>
-          <SignOutButton />
-        </div>
-      </div>
+      <Nav title="İş İlanı Keşfi" email={user.email} current="/" />
 
       <AddLinkForm />
 
       <section className="card">
-        <h2>İlanlar {total > 0 ? `(${jobs.length} / ${total})` : ""}</h2>
+        <h2>
+          İlanlar {allJobs.length > 0 ? `(${jobs.length} / ${query.includeApplied ? allJobs.length : openJobs.length})` : ""}
+        </h2>
         {loadError ? null : <DiscoveryStatus run={lastRun} />}
-        <SourceFilter query={query} levels={availableLevels(allJobs)} />
+        {appliedCount > 0 ? (
+          <p className="status muted">
+            {appliedCount} ilana başvurdunuz; başvurular listede görünmez.{" "}
+            <Link href="/applications">Başvurular sayfası</Link> ·{" "}
+            <Link href={buildJobListHref({ ...query, includeApplied: !query.includeApplied })}>
+              {query.includeApplied ? "Başvurulanları gizle" : "Başvurulanları da göster"}
+            </Link>
+          </p>
+        ) : null}
+        <SourceFilter query={query} levels={availableLevels(query.includeApplied ? allJobs : openJobs)} />
         {loadError ? (
           <p className="message error" role="alert">
             İlanlar yüklenemedi. Sayfayı yenileyin; sorun sürerse Firebase bağlantısını kontrol edin.
           </p>
-        ) : total === 0 ? (
+        ) : allJobs.length === 0 ? (
           <div className="empty">
             <strong>{lastRun ? "Henüz ilan yok." : "Henüz ilan yok; Gmail keşfi bağlı değil."}</strong>
             <span className="muted">
@@ -83,7 +81,9 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           </div>
         ) : jobs.length === 0 ? (
           <div className="empty">
-            <strong>{emptyFilterMessage(query)}</strong>
+            <strong>
+              {openJobs.length === 0 && !query.includeApplied ? "Bekleyen ilan kalmadı; hepsine başvurdunuz." : emptyFilterMessage(query)}
+            </strong>
           </div>
         ) : (
           <JobList jobs={jobs} cvs={cvs} />

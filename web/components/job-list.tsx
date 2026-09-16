@@ -1,5 +1,5 @@
 import { deleteJobPosting } from "@/app/actions";
-import { ApplicationForm } from "@/components/application-form";
+import { ApplyButton } from "@/components/apply-button";
 import {
   APPLICATION_LABELS,
   EXPERIENCE_LABELS,
@@ -67,7 +67,7 @@ export function JobList({ jobs, cvs }: { jobs: StoredJobPosting[]; cvs: StoredCv
               </button>
             </form>
           </div>
-          <ApplicationForm jobId={job.id} application={job.application} cvs={cvs} />
+          {job.application ? null : <ApplyButton jobId={job.id} cvs={cvs} />}
         </li>
       ))}
     </ul>

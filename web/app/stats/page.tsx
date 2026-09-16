@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SignOutButton } from "@/components/sign-out-button";
+import { Nav } from "@/components/nav";
 import { getVerifiedUser } from "@/lib/auth/next";
 import {
   applicationTotals,
@@ -81,21 +80,7 @@ export default async function StatsPage() {
 
   return (
     <main className="container">
-      <div className="topbar">
-        <div>
-          <h1>Başvuru istatistikleri</h1>
-          <div className="who">{user.email ?? "Oturum açık"}</div>
-        </div>
-        <div className="actions">
-          <Link href="/" className="button">
-            İlanlar
-          </Link>
-          <Link href="/cvs" className="button">
-            CV&apos;lerim
-          </Link>
-          <SignOutButton />
-        </div>
-      </div>
+      <Nav title="Başvuru istatistikleri" email={user.email} current="/stats" />
 
       {loadError ? (
         <p className="message error" role="alert">
@@ -106,8 +91,8 @@ export default async function StatsPage() {
           <div className="empty">
             <strong>Henüz başvuru kaydı yok.</strong>
             <span className="muted">
-              İlanlar sayfasında her ilanın altındaki formdan durumu (&quot;Başvurdum&quot;, &quot;Reddedildi&quot; …) ve
-              kullandığınız CV&apos;yi seçtikçe bu sayfa dolar. Oranlar yalnızca kaydettiğiniz başvurulardan hesaplanır.
+              İlanlar sayfasında bir ilanın altındaki &quot;Başvurdum&quot; düğmesine bastıkça, sonra Başvurular sayfasında
+              sonucu işaretledikçe bu sayfa dolar. Oranlar yalnızca sizin kaydettiğiniz başvurulardan hesaplanır.
             </span>
           </div>
         </div>

@@ -17,6 +17,8 @@ export interface JobListQuery {
   method: AcquisitionMethod | null;
   level: LevelFilter | null;
   sort: SortOrder;
+  // Başvurulan ilanlar liste dışında tutulur; başvurular kendi sayfasında izlenir.
+  includeApplied: boolean;
 }
 
 function firstValue(value: string | string[] | undefined): string | undefined {
@@ -33,7 +35,8 @@ export function parseJobListQuery(params: Record<string, string | string[] | und
   const method = ACQUISITION_METHODS.find((candidate) => candidate === rawMethod) ?? null;
   const level: LevelFilter | null = rawLevel === "unknown" ? "unknown" : (EXPERIENCE_LEVELS.find((candidate) => candidate === rawLevel) ?? null);
   const sort: SortOrder = rawSort === "oldest" ? "oldest" : "newest";
-  return { source, method, level, sort };
+  const includeApplied = firstValue(params.applied) === "1";
+  return { source, method, level, sort, includeApplied };
 }
 
 export function buildJobListHref(query: JobListQuery): string {
@@ -42,6 +45,7 @@ export function buildJobListHref(query: JobListQuery): string {
   if (query.method) search.set("method", query.method);
   if (query.level) search.set("level", query.level);
   if (query.sort !== "newest") search.set("sort", query.sort);
+  if (query.includeApplied) search.set("applied", "1");
   const encoded = search.toString();
   return encoded ? `/?${encoded}` : "/";
 }
@@ -52,6 +56,7 @@ export interface SortableJob {
   firstSeenAt: string;
   title: string | null;
   description?: string | null;
+  application?: { status: string } | null;
 }
 
 // Deneyim düzeyi saklanmaz; başlıktan (yoksa açıklamadan) her okumada çıkarılır, böylece kural
@@ -64,6 +69,7 @@ export function jobLevel(job: Pick<SortableJob, "title" | "description">): Level
 export function applyJobListQuery<T extends SortableJob>(jobs: readonly T[], query: JobListQuery): T[] {
   const filtered = jobs.filter(
     (job) =>
+      (query.includeApplied || !job.application) &&
       (query.source === null || job.source === query.source) &&
       (query.method === null || job.acquisitionMethod === query.method) &&
       (query.level === null || jobLevel(job) === query.level),
