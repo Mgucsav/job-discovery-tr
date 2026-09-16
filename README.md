@@ -4,6 +4,8 @@ A personal, single-user system that discovers job postings from the **job-alert 
 
 It deliberately does **not** scrape job sites, log into them, pretend to have a candidate-search API, or submit applications. Everything it knows comes from e-mails you asked the job sites to send you, plus links you paste in yourself.
 
+The web interface is in **Turkish** (it is a single-user personal tool); this document, the code and the comments' intent are described in English here.
+
 > Turkish version of this document: [README.tr.md](README.tr.md)
 
 Live instance (private, login required): `https://job-discovery-tr.vercel.app`
@@ -109,33 +111,50 @@ The shared Firestore document logic (`src/storage/job-posting-documents.ts`, `sr
 
 ```text
 .
-├── src/                         # CLI core (Node 22+, TypeScript, ESM)
-│   ├── cli.ts                   # npm run discover
-│   ├── fixture-cli.ts           # npm run discover:fixtures (no Gmail access)
-│   ├── config.ts                # environment → AppConfig (store selection)
-│   ├── domain.ts                # JobPosting / StoredJobPosting / run report contracts
-│   ├── discovery/parser.ts      # link extraction, validateJobUrl, parseJobAlertEmail
-│   ├── discovery/service.ts     # runDiscovery + run report
-│   ├── gmail/                   # read-only Gmail client, OAuth helper (npm run oauth:setup)
-│   ├── firebase/admin.ts        # firebase-admin bootstrap for the CLI
+├── src/                              # shared core + CLI (Node 22+, TypeScript, ESM)
+│   ├── cli.ts                        # npm run discover
+│   ├── fixture-cli.ts                # npm run discover:fixtures (no Gmail access)
+│   ├── config.ts                     # environment → AppConfig (store selection)
+│   ├── domain.ts                     # JobPosting / StoredJobPosting / application / run report
+│   ├── applications/
+│   │   ├── tracking.ts               # application state transitions + per-CV/source/level stats
+│   │   └── trends.ts                 # period comparison and weekly buckets
+│   ├── discovery/
+│   │   ├── parser.ts                 # link extraction, validateJobUrl, parseJobAlertEmail
+│   │   ├── experience.ts             # rule-based experience-level inference
+│   │   └── service.ts                # runDiscovery + run report
+│   ├── gmail/                        # read-only Gmail client, OAuth helper (npm run oauth:setup)
+│   ├── notify/                       # Telegram Bot API client + npm run telegram:setup
+│   ├── firebase/admin.ts             # firebase-admin bootstrap for the CLI
 │   └── storage/
-│       ├── repository.ts        # JobRepository interface
+│       ├── repository.ts             # JobRepository interface
 │       ├── json-file-repository.ts
 │       ├── memory-repository.ts
-│       ├── job-posting-documents.ts   # pure document logic (ids, merge rule, parsing)
-│       └── job-posting-store.ts       # structural store interface + FirestoreJobRepository
-├── tests/                       # node:test suites for the core (fixtures contain no personal data)
-├── web/                         # Next.js 16 app (App Router, TypeScript)
-│   ├── app/                     # pages, server actions, /api routes, proxy.ts
+│       ├── job-posting-documents.ts  # pure document logic (ids, merge rule, parsing)
+│       ├── job-posting-store.ts      # structural store interface + FirestoreJobRepository
+│       └── cv-store.ts               # CV validation, chunking, integrity, default handling
+├── tests/                            # node:test suites (fixtures contain no personal data)
+│   └── helpers/memory-store.ts       # in-memory stand-in for the Firestore interface
+├── web/                              # Next.js 16 app (App Router, TypeScript)
+│   ├── app/
+│   │   ├── page.tsx                  # job list + "Başvurdum" button
+│   │   ├── applications/             # Aktif → Görüşmeler / Teklifler / Reddedilenler tabs
+│   │   ├── stats/                    # per-CV, per-level, per-source performance
+│   │   ├── trends/                   # this period vs the previous one, weekly buckets
+│   │   ├── cvs/                      # CV upload / default / download / delete
+│   │   ├── login/                    # password sign-in (server action)
+│   │   ├── api/                      # login, logout, jobs, cvs, cvs/[id]
+│   │   └── actions.ts                # server actions (add link, apply, status, delete)
 │   ├── components/
-│   ├── lib/auth/                # Identity Toolkit sign-in, session cookies
-│   ├── lib/firebase/            # firebase-admin bootstrap for the web app
-│   ├── lib/jobs/                # manual link preparation, list query, repository wrappers
-│   ├── lib/core.ts              # re-exports the shared core from ../src
+│   ├── lib/auth/                     # Identity Toolkit sign-in, session cookies
+│   ├── lib/firebase/                 # firebase-admin bootstrap for the web app
+│   ├── lib/jobs/, lib/cvs/           # repository wrappers, manual link, list query
+│   ├── lib/core.ts                   # re-exports the shared core from ../src
+│   ├── proxy.ts                      # redirects cookie-less requests to /login
 │   ├── scripts/verify-firebase.ts
 │   └── tests/
-├── scripts/                     # Windows scheduler runner + registration script
-├── firestore.rules              # deny-all client rules
+├── scripts/                          # Windows scheduler runner + registration script
+├── firestore.rules                   # deny-all client rules
 ├── firestore.indexes.json
 └── firebase.json
 ```
@@ -175,6 +194,22 @@ Posting document fields: `ownerId`, `source`, `sourceJobId`, `url`, `title`, `co
 The document id is the uniqueness key (owner + source + source job id).
 
 CV files are stored in Firestore instead of Cloud Storage because Cloud Storage for Firebase requires the Blaze (billing) plan on new projects. Each file is split into 700 KB chunks (Firestore's document limit is 1 MiB), written atomically with its metadata (name, file name, kind, size, SHA-256, chunk count, default flag) and verified against the hash when read back. Type detection uses the extension **and** magic bytes (`%PDF-` / ZIP header for `.docx`).
+
+### Application record (`src/domain.ts`)
+
+```ts
+interface ApplicationRecord {
+  status: "applied" | "interview" | "offer" | "rejected" | "withdrawn";
+  appliedAt: string | null;  // pinned on the first marking, never moved afterwards
+  decidedAt: string | null;  // re-stamped only when the status actually changes
+  cvId: string | null;
+  cvName: string | null;     // snapshot, so statistics survive deleting the CV
+  notes: string | null;
+  updatedAt: string;
+}
+```
+
+The record lives inside the posting document and is never touched by discovery merges; clearing it ("Başvuruyu kaldır") removes the field.
 
 ### Merge rule (identical for CLI and web)
 
@@ -383,14 +418,16 @@ It asks for your e-mail and (hidden) password locally, then checks: unauthentica
 Deliberately **not** implemented in this version:
 
 - Fetching job descriptions from the sites, scraping or automated browsing
+- Submitting applications or filling forms on the sites (applications are recorded by you, after you apply)
 - AI scoring / CV matching
-- Submitting applications, form filling, application tracking
 - Merging similar postings across sites
 - Cloud-hosted scheduling (discovery runs on your own machine)
+- A full application history: one record per posting means the decision date belongs to the **latest** status, so a rejection after an interview is counted only as a rejection
 
 Planned next (human-in-the-loop "assisted apply" track):
 
-1. Per-posting match score with reasons, computed from the stored CVs
+1. One Gmail label per alert level (e.g. a "junior" alert into its own label) so the experience level comes from the alert itself instead of being inferred from the title
+2. Per-posting match score with reasons, computed from the stored CVs
 3. A saved answer bank for recurring application questions
 4. A local browser assistant that pre-fills applications and stops at the review step — you press *Submit*
 
