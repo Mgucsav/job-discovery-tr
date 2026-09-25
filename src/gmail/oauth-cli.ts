@@ -41,8 +41,10 @@ async function main(): Promise<void> {
   const code = await new Promise<string>((resolve, reject) => {
     const timeout = setTimeout(() => {
       server.close();
-      reject(new Error("OAuth işlemi 5 dakika içinde tamamlanmadı."));
-    }, 300_000);
+      reject(new Error("OAuth işlemi 20 dakika içinde tamamlanmadı."));
+      // Onay ekranında hesap seçimi, doğrulanmamış uygulama uyarısı ve izin adımları var;
+      // 5 dakika pratikte yetmiyordu.
+    }, 20 * 60_000);
     const server = createServer((request, response) => {
       const callback = new URL(request.url ?? "/", config.redirectUri);
       if (callback.pathname !== redirect.pathname) {
